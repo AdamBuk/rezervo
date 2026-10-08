@@ -1,8 +1,11 @@
 "use server";
 
+import { after } from "next/server";
 import { getPublicBusiness } from "@/lib/availability";
 import { createPublicClient } from "@/lib/supabase/public";
 import { isEmail } from "@/lib/format";
+import { getSiteUrl } from "@/lib/site-url";
+import { notifyBookingCreated } from "@/lib/notifications";
 
 export type BookingState =
   | { status: "idle" }
@@ -57,6 +60,9 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
       slotTaken: code === "slot_taken",
     };
   }
+
+  const siteUrl = await getSiteUrl();
+  after(() => notifyBookingCreated(bookingId, siteUrl));
 
   return { status: "success", bookingId, serviceName: service.name, startsAt, email };
 }

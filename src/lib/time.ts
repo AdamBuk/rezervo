@@ -113,5 +113,5 @@ export function formatDateLong(date: string): string {
 }
 
 export function formatTime(date: Date | string, timeZone: string): string {
-  return formatInTimeZone(date, timeZone, { hour: "2-digit", minute: "2-digit" });
+  return formatInTimeZone(date, timeZone, { hour: "numeric", minute: "2-digit" });
 }

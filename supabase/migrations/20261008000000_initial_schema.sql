@@ -120,7 +120,11 @@ create policy "owner updates bookings" on public.bookings
   with check (exists (select 1 from public.businesses b where b.id = business_id and b.owner_id = (select auth.uid())));
 
 -- Explicit grants (newer Supabase projects no longer expose tables to the Data API by default)
-grant select on public.businesses, public.services, public.opening_hours to anon, authenticated;
+grant select on public.services, public.opening_hours to anon, authenticated;
+grant select on public.businesses to authenticated;
+-- Anonymous visitors only get the public profile columns (not owner_id / notification_email).
+grant select (id, name, slug, description, address, phone, timezone, slot_step_minutes)
+  on public.businesses to anon;
 grant insert, update, delete on public.businesses, public.services, public.opening_hours to authenticated;
 grant select, update on public.bookings to authenticated;
 

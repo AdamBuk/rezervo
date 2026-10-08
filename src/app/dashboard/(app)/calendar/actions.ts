@@ -1,11 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { requireBusiness } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { computeAvailableSlots } from "@/lib/slots";
 import { addDays, isoWeekday, isValidDateString, timeToMinutes, zonedTimeToUtc } from "@/lib/time";
 import type { ActionState } from "@/lib/constants";
+import { getSiteUrl } from "@/lib/site-url";
+import { notifyBookingCancelled, notifyBookingRescheduled } from "@/lib/notifications";
 
 export async function cancelBooking(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const business = await requireBusiness();
@@ -22,6 +25,9 @@ export async function cancelBooking(_prev: ActionState, formData: FormData): Pro
     .maybeSingle();
 
   if (error || !data) return { error: "Rezervaci se nepodařilo zrušit." };
+
+  const siteUrl = await getSiteUrl();
+  after(() => notifyBookingCancelled(id, siteUrl));
 
   revalidatePath("/dashboard");
   return { success: "Rezervace byla zrušena." };
@@ -93,6 +99,9 @@ export async function rescheduleBooking(_prev: ActionState, formData: FormData):
     if (error.code === "23P01") return { error: "Termín se mezitím obsadil. Vyberte jiný." };
     return { error: "Rezervaci se nepodařilo přesunout." };
   }
+
+  const siteUrl = await getSiteUrl();
+  after(() => notifyBookingRescheduled(id, booking.starts_at, siteUrl));
 
   revalidatePath("/dashboard");
   return { success: "Rezervace byla přesunuta." };
