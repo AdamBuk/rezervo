@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+
+  /* Brand palette: deep teal with warm sand neutrals */
+  --color-brand-50: #eefbf8;
+  --color-brand-100: #d5f4ec;
+  --color-brand-200: #aee8da;
+  --color-brand-300: #79d5c3;
+  --color-brand-400: #45bba7;
+  --color-brand-500: #26a08d;
+  --color-brand-600: #1b8173;
+  --color-brand-700: #19675e;
+  --color-brand-800: #18534d;
+  --color-brand-900: #174541;
+  --color-brand-950: #072826;
+
+  --color-sand-50: #faf8f5;
+  --color-sand-100: #f3efe8;
+  --color-sand-200: #e6dfd3;
+}
+
+body {
+  @apply bg-sand-50 text-stone-900 antialiased;
+}
+
+/* Shared form controls (defined as utilities so they compose with @apply) */
+@utility input {
+  @apply block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 shadow-xs placeholder:text-stone-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none disabled:bg-stone-100;
+}
+@utility label {
+  @apply mb-1 block text-sm font-medium text-stone-700;
+}
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:cursor-not-allowed disabled:opacity-60;
+}
+@utility btn-primary {
+  @apply btn bg-brand-700 text-white hover:bg-brand-800;
+}
+@utility btn-secondary {
+  @apply btn border border-stone-300 bg-white text-stone-800 hover:bg-stone-50;
+}
+@utility btn-danger {
+  @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50;
+}
+@utility card {
+  @apply rounded-2xl border border-stone-200 bg-white p-6 shadow-xs;
+}
