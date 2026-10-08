@@ -127,6 +127,8 @@ grant select (id, name, slug, description, address, phone, timezone, slot_step_m
   on public.businesses to anon;
 grant insert, update, delete on public.businesses, public.services, public.opening_hours to authenticated;
 grant select, update on public.bookings to authenticated;
+-- Server-side jobs (e-mails, reminders, seeding) use the secret key = service_role.
+grant all on public.businesses, public.services, public.opening_hours, public.bookings to service_role;
 
 -- ---------------------------------------------------------------------------
 -- Public functions
