@@ -28,3 +28,10 @@ Rezervační systém pro malé podniky (kadeřnictví, fyzio, masáže).
 ## Pravidla
 - Fáze provádět postupně, po každé fázi udělat commit.
 - Na konci shrnutí: co bylo uděláno, jak aplikaci spustit, co je potřeba nastavit ručně (účty, klíče).
+
+## Stav a poznámky pro vývoj
+- Všech 7 fází MVP je hotových (viz git log). Aplikace se jmenuje **Rezervo**.
+- Next.js 16: `middleware` je nyní `src/proxy.ts`; `params`/`searchParams` jsou Promise. `cacheComponents` je záměrně vypnuté.
+- DB schéma: `supabase/migrations/`. Překryvy rezervací hlídá exclusion constraint `bookings_no_overlap`; zákazníci vytváří rezervace jen přes RPC `create_booking`.
+- Po změně schématu aktualizovat ručně psané typy v `src/lib/database.types.ts`.
+- Příkazy: `npm run dev`, `npm test` (vitest), `npm run test:db` (PGlite), `npm run lint`, `npm run seed` (demo data, potřebuje `.env.local`).

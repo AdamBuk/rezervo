@@ -109,8 +109,10 @@ export function CalendarGrid({ days, today, timeZone, bookings, hours, bookingHr
                         style={{ top: (b.startMin - gridStart) * PX_PER_MIN + 1, height }}
                         title={`${minutesToTime(b.startMin)} ${b.customerName} – ${b.serviceName}`}
                       >
-                        <span className="font-semibold tabular-nums">{minutesToTime(b.startMin)}</span>{" "}
-                        <span className="font-medium">{b.customerName}</span>
+                        <span className="block truncate">
+                          <span className="font-semibold tabular-nums">{minutesToTime(b.startMin)}</span>{" "}
+                          <span className="font-medium">{b.customerName}</span>
+                        </span>
                         {!compact && <span className="block truncate opacity-80">{b.serviceName}</span>}
                       </Link>
                     );
