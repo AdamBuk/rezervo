@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { bookingConfirmationEmail, ownerNotificationEmail, reminderEmail, rescheduleEmail } from "./templates";
+import {
+  bookingConfirmationEmail,
+  customerCancelledOwnerEmail,
+  ownerNotificationEmail,
+  reminderEmail,
+  rescheduleEmail,
+} from "./templates";
 
 const data = {
   customerName: "Jana <script>Nováková</script>",
@@ -19,6 +25,29 @@ const data = {
   },
   siteUrl: "https://rezervo.example",
 };
+
+describe("manage link", () => {
+  const manageUrl = "https://rezervo.example/rezervace/9d4f/abc";
+
+  it("adds a cancel button to confirmation and reminder when available", () => {
+    for (const email of [bookingConfirmationEmail({ ...data, manageUrl }), reminderEmail({ ...data, manageUrl })]) {
+      expect(email.html).toContain(`href="${manageUrl}"`);
+      expect(email.text).toContain(`Zobrazit nebo zrušit rezervaci: ${manageUrl}`);
+    }
+  });
+
+  it("omits the button without a link or for non-http URLs", () => {
+    expect(bookingConfirmationEmail(data).html).not.toContain("Zobrazit nebo zrušit");
+    expect(bookingConfirmationEmail({ ...data, manageUrl: "javascript:alert(1)" }).html).not.toContain("javascript:");
+  });
+
+  it("notifies the owner about a customer cancellation", () => {
+    const email = customerCancelledOwnerEmail(data);
+    expect(email.to).toBe("salon@example.cz");
+    expect(email.replyTo).toBe("jana@example.cz");
+    expect(email.html).not.toContain("<script>");
+  });
+});
 
 describe("email templates", () => {
   it("renders the customer confirmation in the business timezone", () => {

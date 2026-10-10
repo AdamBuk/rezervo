@@ -24,5 +24,6 @@ export async function GET(request: NextRequest) {
     if (!error) return NextResponse.redirect(new URL(next, origin));
   }
 
-  return NextResponse.redirect(new URL("/login?error=link", origin));
+  const failure = next === "/reset-password" ? "reset" : "link";
+  return NextResponse.redirect(new URL(`/login?error=${failure}`, origin));
 }

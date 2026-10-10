@@ -21,7 +21,7 @@ function ServiceFields({ service }: { service?: Service }) {
           required
           maxLength={100}
           defaultValue={service?.name}
-          placeholder="např. Pánský střih"
+          placeholder="např. Pánský střih…"
           className="input"
         />
       </div>

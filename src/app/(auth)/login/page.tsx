@@ -16,6 +16,11 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           Odkaz z e-mailu je neplatný nebo vypršel. Zkuste se přihlásit, případně se zaregistrujte znovu.
         </p>
       )}
+      {error === "reset" && (
+        <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800" role="alert">
+          Odkaz pro obnovu hesla je neplatný nebo vypršel. Požádejte prosím o nový.
+        </p>
+      )}
       <AuthForm mode="login" action={login} next={typeof next === "string" ? next : undefined} />
     </>
   );

@@ -6,6 +6,7 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { isEmail } from "@/lib/format";
 import { getSiteUrl } from "@/lib/site-url";
 import { notifyBookingCreated } from "@/lib/notifications";
+import { bookingManageToken } from "@/lib/booking-link";
 import { createSupabaseRateLimiter, getClientIp } from "@/lib/rate-limit";
 
 /** Per visitor IP: generous for real customers, stops scripted spam. */
@@ -15,7 +16,16 @@ const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 export type BookingState =
   | { status: "idle" }
   | { status: "error"; error: string; slotTaken?: boolean }
-  | { status: "success"; bookingId: string; serviceName: string; durationMinutes: number; startsAt: string; email: string };
+  | {
+      status: "success";
+      bookingId: string;
+      serviceName: string;
+      durationMinutes: number;
+      startsAt: string;
+      email: string;
+      /** Relative manage/cancel link, when links are configured */
+      managePath: string | null;
+    };
 
 const DB_ERRORS: Record<string, string> = {
   slot_taken: "Tento termín si mezitím zarezervoval někdo jiný. Vyberte prosím jiný čas.",
@@ -80,5 +90,14 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
   const siteUrl = await getSiteUrl();
   after(() => notifyBookingCreated(bookingId, siteUrl));
 
-  return { status: "success", bookingId, serviceName: service.name, durationMinutes: service.duration_minutes, startsAt, email };
+  const token = bookingManageToken(bookingId, process.env.API_KEY_ENCRYPTION_SECRET);
+  return {
+    status: "success",
+    bookingId,
+    serviceName: service.name,
+    durationMinutes: service.duration_minutes,
+    startsAt,
+    email,
+    managePath: token ? `/rezervace/${bookingId}/${token}` : null,
+  };
 }

@@ -10,7 +10,19 @@ export const WEEKDAYS = [
 ] as const;
 
 /** Must stay in sync with the businesses_slug_check constraint. */
-export const RESERVED_SLUGS = ["login", "register", "logout", "dashboard", "auth", "api", "admin", "about"];
+export const RESERVED_SLUGS = [
+  "login",
+  "register",
+  "logout",
+  "dashboard",
+  "auth",
+  "api",
+  "admin",
+  "about",
+  "forgot-password",
+  "reset-password",
+  "rezervace",
+];
 
 export const SLOT_STEPS = [5, 10, 15, 20, 30, 60] as const;
 
@@ -23,3 +35,6 @@ export const BOOKING_HORIZON_DAYS = 60;
 export const MIN_NOTICE_MINUTES = 30;
 
 export type ActionState = { error?: string; success?: string } | undefined;
+
+/** Customers can cancel online up to this many hours before the appointment; later they have to call. */
+export const CUSTOMER_CANCEL_NOTICE_HOURS = 2;

@@ -38,7 +38,7 @@ export function BusinessForm({ action, business, submitLabel, siteHost }: Props)
             setName(e.target.value);
             if (!slugTouched) setSlug(slugify(e.target.value));
           }}
-          placeholder="např. Kadeřnictví U Nůžek"
+          placeholder="např. Kadeřnictví U Nůžek…"
           className="input"
         />
       </div>
@@ -108,6 +108,8 @@ export function BusinessForm({ action, business, submitLabel, siteHost }: Props)
               id="notification_email"
               name="notification_email"
               type="email"
+              spellCheck={false}
+              autoCapitalize="none"
               required
               defaultValue={business.notification_email}
               className="input"

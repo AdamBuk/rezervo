@@ -21,8 +21,56 @@
   --color-sand-200: #e6dfd3;
 }
 
+html {
+  /* Keep focused/anchored elements clear of the sticky header */
+  scroll-padding-top: 5rem;
+  -webkit-tap-highlight-color: transparent;
+  /* No font inflation in landscape */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
 body {
   @apply bg-sand-50 text-stone-900 antialiased;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* No double-tap zoom delay on controls */
+a,
+button,
+input,
+select,
+textarea,
+label,
+summary {
+  touch-action: manipulation;
+}
+
+/* Controls aren't content: no text selection or callout on long-press */
+button,
+[role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Visible keyboard focus everywhere; components may refine it with their own focus-visible styles */
+:where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 2px;
+}
+
+@utility skip-link {
+  @apply fixed top-3 left-3 z-50 -translate-y-20 rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white shadow-lg transition-transform focus-visible:translate-y-0 motion-reduce:transition-none;
 }
 
 /* Motion: short, ease-out entrances; disabled via motion-reduce:animate-none where used */
@@ -46,13 +94,13 @@ body {
 
 /* Shared form controls (defined as utilities so they compose with @apply) */
 @utility input {
-  @apply block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 shadow-xs placeholder:text-stone-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none disabled:bg-stone-100;
+  @apply block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 shadow-xs placeholder:text-stone-400 pointer-coarse:text-base focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none disabled:bg-stone-100;
 }
 @utility label {
   @apply mb-1 block text-sm font-medium text-stone-700;
 }
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 disabled:cursor-not-allowed disabled:opacity-60;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-[color,background-color,border-color,transform] duration-150 ease-out select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 motion-reduce:active:scale-100;
 }
 @utility btn-primary {
   @apply btn bg-brand-700 text-white hover:bg-brand-800;

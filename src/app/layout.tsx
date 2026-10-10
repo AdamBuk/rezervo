@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -16,10 +16,20 @@ export const metadata: Metadata = {
     "Jednoduchý rezervační systém pro kadeřnictví, fyzioterapie a masáže. Zákazníci si rezervují termín online, vy máte přehled v kalendáři.",
 };
 
+export const viewport: Viewport = {
+  themeColor: "#faf8f5",
+  colorScheme: "light",
+};
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="cs" className={`${jakarta.variable} h-full`}>
-      <body className="flex min-h-full flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <a href="#main" className="skip-link">
+          Přeskočit na obsah
+        </a>
+        {children}
+      </body>
     </html>
   );
 }

@@ -5,17 +5,20 @@ import { sendEmail } from "@/lib/email/send";
 import {
   bookingConfirmationEmail,
   cancellationEmail,
+  customerCancelledOwnerEmail,
   ownerNotificationEmail,
   reminderEmail,
   rescheduleEmail,
   type BookingEmailData,
 } from "@/lib/email/templates";
 import { addDays, todayInTimeZone, toZoned } from "@/lib/time";
+import { bookingManageUrl } from "@/lib/booking-link";
 
 const BOOKING_SELECT =
   "id, starts_at, customer_name, customer_email, customer_phone, services(name, duration_minutes, price_czk), businesses(name, slug, address, phone, timezone, notification_email)" as const;
 
 type BookingWithRelations = {
+  id: string;
   starts_at: string;
   customer_name: string;
   customer_email: string;
@@ -50,6 +53,7 @@ function toEmailData(b: BookingWithRelations, siteUrl: string): BookingEmailData
       notificationEmail: b.businesses.notification_email,
     },
     siteUrl,
+    manageUrl: bookingManageUrl(siteUrl, b.id, process.env.API_KEY_ENCRYPTION_SECRET),
   };
 }
 
@@ -82,6 +86,17 @@ export async function notifyBookingCancelled(bookingId: string, siteUrl: string)
     if (data) await sendEmail(cancellationEmail(data));
   } catch (err) {
     console.error("[notifications] notifyBookingCancelled failed", err);
+  }
+}
+
+/** Customer cancelled via the manage link: confirm to them and let the owner know. */
+export async function notifyBookingCancelledByCustomer(bookingId: string, siteUrl: string) {
+  try {
+    const data = await loadBooking(bookingId, siteUrl);
+    if (!data) return;
+    await Promise.all([sendEmail(cancellationEmail(data)), sendEmail(customerCancelledOwnerEmail(data))]);
+  } catch (err) {
+    console.error("[notifications] notifyBookingCancelledByCustomer failed", err);
   }
 }
 

@@ -86,6 +86,8 @@ await expect("other user sees 0 bookings", () => db.query("select count(*) from 
 await expect("other user cannot add service", () => db.query(
   "insert into services (business_id,name,duration_minutes,price_czk) values ($1,'x',30,1)", [biz.id]), /row-level/);
 await expect("other user update biz affects 0", () => db.query("update businesses set name='Hack' where id=$1", [biz.id]).then(r => r.affectedRows));
+await expect("reserved slug (new route)", () => db.query(
+  `insert into businesses (owner_id,name,slug,notification_email) values ($1,'XY','reset-password','p@x.cz')`, [other]), /check constraint/);
 await expect("reserved slug", () => db.query(
   `insert into businesses (owner_id,name,slug,notification_email) values ($1,'XY','dashboard','p@x.cz')`, [other]), /check constraint/);
 await db.exec("reset role");

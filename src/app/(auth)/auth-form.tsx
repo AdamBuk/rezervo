@@ -35,6 +35,8 @@ export function AuthForm({ mode, action, next }: Props) {
           id="email"
           name="email"
           type="email"
+          spellCheck={false}
+          autoCapitalize="none"
           autoComplete="email"
           required
           defaultValue={state?.email}
@@ -42,9 +44,16 @@ export function AuthForm({ mode, action, next }: Props) {
         />
       </div>
       <div>
-        <label htmlFor="password" className="label">
-          Heslo
-        </label>
+        <div className="flex items-baseline justify-between gap-3">
+          <label htmlFor="password" className="label">
+            Heslo
+          </label>
+          {isLogin && (
+            <Link href="/forgot-password" className="mb-1 rounded-sm text-xs font-medium text-brand-700 hover:underline">
+              Zapomněli jste heslo?
+            </Link>
+          )}
+        </div>
         <PasswordInput
           id="password"
           name="password"

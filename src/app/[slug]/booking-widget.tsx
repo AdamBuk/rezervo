@@ -135,9 +135,16 @@ function BookingFlow({ business, services, openWeekdays, today, onRestart }: Pro
             location={business.address}
             description={business.phone ? `Změna termínu: ${business.phone}` : undefined}
           />
-          <button type="button" onClick={onRestart} className="text-sm font-semibold text-brand-700 hover:underline">
-            Vytvořit další rezervaci
-          </button>
+          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm font-semibold">
+            {state.managePath && (
+              <a href={state.managePath} className="text-stone-600 hover:text-stone-900 hover:underline">
+                Zobrazit nebo zrušit rezervaci
+              </a>
+            )}
+            <button type="button" onClick={onRestart} className="text-brand-700 hover:underline">
+              Vytvořit další rezervaci
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -351,6 +358,8 @@ function BookingFlow({ business, services, openWeekdays, today, onRestart }: Pro
                 id="email"
                 name="email"
                 type="email"
+                spellCheck={false}
+                autoCapitalize="none"
                 inputMode="email"
                 required
                 autoComplete="email"

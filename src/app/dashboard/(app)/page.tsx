@@ -88,6 +88,11 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
 
   return (
     <div className="space-y-4">
+      {params.password === "changed" && (
+        <p className="rounded-xl bg-brand-50 px-4 py-3 text-sm font-medium text-brand-800" role="status">
+          Heslo bylo změněno.
+        </p>
+      )}
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <div className="rounded-2xl border border-stone-200 bg-white px-4 py-3 sm:px-5 sm:py-4">
           <dt className="text-sm text-stone-500">Rezervace · {periodLabel}</dt>
@@ -162,7 +167,9 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
   );
 }
 
+const shortDate = new Intl.DateTimeFormat("cs-CZ", { timeZone: "UTC", day: "numeric", month: "numeric" });
+
+/** "2026-10-14" → "14. 10." (calendar date, timezone-independent) */
 function formatShort(date: string) {
-  const [, m, d] = date.split("-").map(Number);
-  return `${d}. ${m}.`;
+  return shortDate.format(new Date(`${date}T00:00:00Z`));
 }

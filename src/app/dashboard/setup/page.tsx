@@ -11,7 +11,7 @@ export default async function SetupPage() {
   if (await getOwnBusiness()) redirect("/dashboard");
 
   return (
-    <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-10 sm:px-6">
+    <main id="main" tabIndex={-1} className="outline-none mx-auto w-full max-w-2xl flex-1 px-4 py-10 sm:px-6">
       <p className="text-sm font-semibold text-brand-700">Krok 1 ze 3</p>
       <h1 className="mt-1 text-2xl font-bold tracking-tight">Představte svůj podnik</h1>
       <p className="mt-2 text-stone-600">

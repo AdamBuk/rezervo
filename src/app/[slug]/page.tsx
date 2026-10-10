@@ -44,7 +44,7 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-5xl flex-1 items-start gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[1fr_16rem]">
+      <main id="main" tabIndex={-1} className="mx-auto grid outline-none w-full max-w-5xl flex-1 items-start gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[1fr_16rem]">
         <BookingWidget
           business={business}
           services={services}
