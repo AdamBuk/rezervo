@@ -87,23 +87,23 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
     : null;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {params.password === "changed" && (
         <p className="rounded-xl bg-brand-50 px-4 py-3 text-sm font-medium text-brand-800" role="status">
           Heslo bylo změněno.
         </p>
       )}
-      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-stone-200 bg-white px-4 py-3 sm:px-5 sm:py-4">
-          <dt className="text-sm text-stone-500">Rezervace · {periodLabel}</dt>
-          <dd className="mt-1 text-xl font-bold tabular-nums sm:text-2xl">{calendarBookings.length}</dd>
+      <dl className="stagger grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="glass rounded-2xl px-4 py-3">
+          <dt className="text-xs font-medium text-stone-500">Rezervace · {periodLabel}</dt>
+          <dd className="mt-0.5 text-2xl font-bold tracking-tight tabular-nums">{calendarBookings.length}</dd>
         </div>
-        <div className="rounded-2xl border border-stone-200 bg-white px-4 py-3 sm:px-5 sm:py-4">
-          <dt className="text-sm text-stone-500">Očekávaná tržba · {periodLabel}</dt>
-          <dd className="mt-1 text-xl font-bold tabular-nums sm:text-2xl">{formatPrice(revenue)}</dd>
+        <div className="glass rounded-2xl px-4 py-3">
+          <dt className="text-xs font-medium text-stone-500">Očekávaná tržba · {periodLabel}</dt>
+          <dd className="mt-0.5 text-2xl font-bold tracking-tight tabular-nums">{formatPrice(revenue)}</dd>
         </div>
-        <div className="col-span-2 rounded-2xl border border-stone-200 bg-white px-4 py-3 sm:col-span-1 sm:px-5 sm:py-4">
-          <dt className="text-sm text-stone-500">Nejbližší zákazník</dt>
+        <div className="glass col-span-2 rounded-2xl px-4 py-3 sm:col-span-1">
+          <dt className="text-xs font-medium text-stone-500">Nejbližší zákazník</dt>
           <dd className="mt-1 min-w-0">
             {upcoming && upcomingHref ? (
               <Link href={upcomingHref} className="group block min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-brand-600">
@@ -134,13 +134,13 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
           </Link>
           <h2 className="ml-2 text-lg font-semibold">{title}</h2>
         </div>
-        <div className="inline-flex rounded-lg border border-stone-300 bg-white p-0.5 text-sm" role="group" aria-label="Zobrazení">
+        <div className="glass inline-flex rounded-xl p-1 text-sm" role="group" aria-label="Zobrazení">
           {(["day", "week"] as const).map((v) => (
             <Link
               key={v}
               href={href({ view: v, booking: null })}
               aria-current={view === v ? "page" : undefined}
-              className={`rounded-md px-3 py-1.5 font-medium ${view === v ? "bg-brand-700 text-white" : "text-stone-600 hover:bg-stone-100"}`}
+              className={`rounded-lg px-3 py-1 font-medium transition-[color,background-color,box-shadow] duration-200 ${view === v ? "bg-white text-brand-800 shadow-(--shadow-glass)" : "text-stone-600 hover:bg-white/60"}`}
             >
               {v === "day" ? "Den" : "Týden"}
             </Link>

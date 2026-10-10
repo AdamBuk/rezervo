@@ -7,8 +7,8 @@ export default async function DashboardLayout({ children }: LayoutProps<"/dashbo
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="border-b border-stone-200 bg-white">
-        <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
+      <header className="glass-strong sticky top-0 z-30 border-b">
+        <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6">
           <Logo href="/dashboard" />
           <div className="flex items-center gap-3 text-sm">
             <span className="hidden max-w-48 truncate text-stone-500 sm:block">{user.email}</span>

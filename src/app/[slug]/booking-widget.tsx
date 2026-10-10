@@ -165,13 +165,13 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
   const days = Array.from({ length: DAYS_PER_PAGE }, (_, i) => addDays(pageStart, i));
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Step 1: service */}
       <section className="card" aria-labelledby="step-1">
         <StepTitle id="step-1" n={1} done={Boolean(service)}>
           Vyberte službu
         </StepTitle>
-        <div className="mt-4 grid gap-2">
+        <div className="stagger mt-3 grid gap-2 sm:grid-cols-2">
           {services.map((s) => {
             const selected = s.id === serviceId;
             return (
@@ -183,15 +183,15 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
                   setServiceId(s.id);
                   requestAnimationFrame(() => revealStep(step2Ref.current));
                 }}
-                className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.99] motion-reduce:active:scale-100 ${
+                className={`flex items-center justify-between gap-3 rounded-xl border px-3.5 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.98] motion-reduce:active:scale-100 ${
                   selected
-                    ? "border-brand-600 bg-brand-50 ring-1 ring-brand-600"
-                    : "border-stone-200 hover:border-stone-300 hover:bg-stone-50"
+                    ? "border-brand-600 bg-brand-50/90 shadow-(--shadow-glass) ring-1 ring-brand-600"
+                    : "border-white/80 bg-white/55 hover:border-brand-200 hover:bg-white/90 hover:shadow-xs"
                 }`}
               >
                 <span className="min-w-0">
-                  <span className="block font-medium">{s.name}</span>
-                  {s.description && <span className="block text-sm text-stone-500">{s.description}</span>}
+                  <span className="block truncate font-medium">{s.name}</span>
+                  {s.description && <span className="block truncate text-sm text-stone-500">{s.description}</span>}
                 </span>
                 <span className="shrink-0 text-right text-sm">
                   <span className="block font-semibold tabular-nums">{formatPrice(s.price_czk)}</span>
@@ -236,7 +236,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-7 gap-1.5">
+        <div className="mt-3 grid grid-cols-7 gap-1.5">
           {days.map((d) => {
             const weekday = WEEKDAYS[isoWeekday(d) - 1];
             const holiday = isClosedOn(d, closures);
@@ -255,8 +255,8 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
                   selected
                     ? "border-brand-700 bg-brand-700 text-white"
                     : closed
-                      ? "cursor-not-allowed border-stone-100 bg-stone-50 text-stone-300"
-                      : "border-stone-200 hover:border-brand-400 hover:bg-brand-50"
+                      ? "cursor-not-allowed border-transparent bg-stone-100/50 text-stone-300"
+                      : "border-white/80 bg-white/55 hover:border-brand-300 hover:bg-white"
                 }`}
               >
                 <span className="block text-xs font-medium uppercase">{weekday.short}</span>
@@ -267,12 +267,12 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
           })}
         </div>
 
-        <p className="mt-5 text-sm font-medium first-letter:uppercase">{formatDateLong(date)}</p>
+        <p className="mt-4 text-sm font-medium first-letter:uppercase">{formatDateLong(date)}</p>
         <div className="mt-2 min-h-12" aria-live="polite">
           {!service ? null : !current ? (
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6" aria-label="Načítám volné termíny">
-              {Array.from({ length: 6 }, (_, i) => (
-                <div key={i} className="h-9 animate-pulse rounded-lg bg-stone-100" />
+            <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-7" aria-label="Načítám volné termíny">
+              {Array.from({ length: 7 }, (_, i) => (
+                <div key={i} className="h-9 animate-pulse rounded-lg bg-white/60" />
               ))}
             </div>
           ) : "failed" in current ? (
@@ -283,7 +283,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
               </button>
             </p>
           ) : current.slots.length === 0 ? (
-            <div className="rounded-xl bg-sand-100 px-4 py-3 text-sm text-stone-600">
+            <div className="rounded-xl border border-white/70 bg-white/50 px-4 py-3 text-sm text-stone-600">
               <p>V tento den už nejsou volné termíny.</p>
               {current.nextAvailable ? (
                 <button
@@ -298,7 +298,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
               )}
             </div>
           ) : (
-            <div key={requestKey} className="grid animate-[rise-in_220ms_var(--ease-out)] grid-cols-4 gap-2 motion-reduce:animate-[fade-in_150ms_ease-out] sm:grid-cols-6">
+            <div key={requestKey} className="grid animate-[rise-in_220ms_var(--ease-out)] grid-cols-4 gap-1.5 motion-reduce:animate-[fade-in_150ms_ease-out] sm:grid-cols-6 md:grid-cols-7">
               {current.slots.map((s) => (
                 <button
                   key={s}
@@ -311,8 +311,8 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
                   }}
                   className={`rounded-lg border py-2 text-sm font-medium tabular-nums transition-[color,background-color,border-color,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${
                     s === slot
-                      ? "border-brand-700 bg-brand-700 text-white"
-                      : "border-stone-200 hover:border-brand-400 hover:bg-brand-50"
+                      ? "border-brand-700 bg-brand-700 text-white shadow-(--shadow-brand)"
+                      : "border-white/80 bg-white/60 hover:border-brand-300 hover:bg-white"
                   }`}
                 >
                   {formatTime(s, business.timezone)}
@@ -333,7 +333,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
         <StepTitle id="step-3" n={3} done={false}>
           Vaše údaje
         </StepTitle>
-        <form action={formAction} className="mt-4 space-y-4">
+        <form action={formAction} className="mt-3 space-y-4">
           <input type="hidden" name="slug" value={business.slug} />
           <input type="hidden" name="service_id" value={serviceId ?? ""} />
           <input type="hidden" name="starts_at" value={slot ?? ""} />
@@ -343,6 +343,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
             </label>
           </div>
 
+          <div className="grid gap-3 md:grid-cols-3">
           <div>
             <label htmlFor="name" className="label">
               Jméno a příjmení
@@ -359,7 +360,6 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
               className="input"
             />
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="email" className="label">
                 E-mail
@@ -405,7 +405,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
           )}
 
           {service && slot && (
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl bg-sand-100 px-4 py-3 text-sm">
+            <div className="flex animate-[rise-in_220ms_var(--ease-out)] flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl border border-brand-100 bg-brand-50/70 px-4 py-3 text-sm motion-reduce:animate-none">
               <span>
                 <span className="font-semibold">{service.name}</span> ·{" "}
                 <span className="first-letter:uppercase">

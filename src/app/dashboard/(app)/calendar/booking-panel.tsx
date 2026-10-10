@@ -25,9 +25,9 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
-      <Link href={closeHref} scroll={false} aria-label="Zavřít detail" className="absolute inset-0 animate-[fade-in_200ms_ease-out] bg-stone-900/30" />
+      <Link href={closeHref} scroll={false} aria-label="Zavřít detail" className="absolute inset-0 animate-[fade-in_200ms_ease-out] bg-stone-900/25 backdrop-blur-[2px]" />
       <DrawerShell closeHref={closeHref} labelledBy="booking-title">
-        <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/70 bg-white/60 px-5 py-3.5 backdrop-blur-xl">
           <h2 id="booking-title" className="font-semibold">
             Detail rezervace
           </h2>
@@ -39,7 +39,7 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
         {!booking || !local ? (
           <p className="p-5 text-stone-600">Rezervace nebyla nalezena.</p>
         ) : (
-          <div className="space-y-6 p-5">
+          <div className="space-y-5 p-5">
             <div>
               {booking.status === "cancelled" && (
                 <p className="mb-3 inline-block rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">Zrušeno</p>
@@ -59,7 +59,7 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
               </p>
             </div>
 
-            <dl className="space-y-3 rounded-xl bg-sand-50 p-4 text-sm">
+            <dl className="space-y-3 rounded-xl border border-white/80 bg-white/60 p-4 text-sm">
               <div>
                 <dt className="text-stone-500">Zákazník</dt>
                 <dd className="font-medium">{booking.customer_name}</dd>

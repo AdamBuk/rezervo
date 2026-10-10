@@ -23,7 +23,7 @@ type Props = {
   selectedId: string | null;
 };
 
-const HOUR_HEIGHT = 56; // px
+const HOUR_HEIGHT = 48; // px
 const PX_PER_MIN = HOUR_HEIGHT / 60;
 
 /** Time-grid calendar (one column per day) with bookings positioned by time. */
@@ -47,12 +47,12 @@ export function CalendarGrid({ days, today, timeZone, bookings, hours, now, book
   const isWeek = days.length > 1;
 
   return (
-    <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
+    <div className="glass overflow-x-auto rounded-2xl">
       <div className={isWeek ? "min-w-[680px]" : ""}>
         {/* Day headers */}
-        <div className="grid border-b border-stone-200" style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, 1fr)` }}>
+        <div className="grid border-b border-white/70 bg-white/40" style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, 1fr)` }}>
           {/* Sticky so the time column stays visible when the week scrolls sideways on phones */}
-          <div className="sticky left-0 z-20 bg-white" />
+          <div className="sticky left-0 z-20 bg-white/85 backdrop-blur" />
           {days.map((d) => {
             const wd = WEEKDAYS[isoWeekday(d) - 1];
             const isToday = d === today;
@@ -74,7 +74,7 @@ export function CalendarGrid({ days, today, timeZone, bookings, hours, now, book
 
         {/* Time grid */}
         <div className="grid" style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, 1fr)` }}>
-          <div className="sticky left-0 z-20 bg-white" style={{ height: gridHeight }}>
+          <div className="sticky left-0 z-20 bg-white/85 backdrop-blur" style={{ height: gridHeight }}>
             {hourLabels.map((h, i) => (
               <span key={h} className="absolute right-2 -translate-y-1/2 text-xs text-stone-400 tabular-nums" style={{ top: i * HOUR_HEIGHT }}>
                 {i === 0 ? "" : `${h}:00`}
@@ -87,9 +87,9 @@ export function CalendarGrid({ days, today, timeZone, bookings, hours, now, book
             const openTop = opening ? (timeToMinutes(opening.opens_at) - gridStart) * PX_PER_MIN : 0;
             const openHeight = opening ? (timeToMinutes(opening.closes_at) - timeToMinutes(opening.opens_at)) * PX_PER_MIN : 0;
             return (
-              <div key={d} className="relative border-l border-stone-100 bg-stone-50/70" style={{ height: gridHeight }}>
+              <div key={d} className="relative border-l border-stone-200/50 bg-stone-100/40" style={{ height: gridHeight }}>
                 {/* Opening hours background */}
-                {opening && <div className="absolute inset-x-0 bg-white" style={{ top: openTop, height: openHeight }} />}
+                {opening && <div className="absolute inset-x-0 bg-white/70" style={{ top: openTop, height: openHeight }} />}
                 {/* Hour lines */}
                 {hourLabels.map((h, i) => (
                   <div key={h} className="absolute inset-x-0 border-t border-stone-100" style={{ top: i * HOUR_HEIGHT }} />
@@ -119,8 +119,8 @@ export function CalendarGrid({ days, today, timeZone, bookings, hours, now, book
                           b.id === selectedId
                             ? "border-brand-900 bg-brand-700 text-white"
                             : past
-                              ? "border-stone-300 bg-stone-100 text-stone-500 hover:bg-stone-200"
-                              : "border-brand-600 bg-brand-100 text-brand-950 hover:bg-brand-200"
+                              ? "border-stone-300 bg-stone-100/80 text-stone-500 hover:bg-stone-200"
+                              : "border-brand-600 bg-linear-to-b from-brand-100 to-brand-50 text-brand-950 hover:from-brand-200 hover:to-brand-100"
                         }`}
                         style={{ top: (b.startMin - gridStart) * PX_PER_MIN + 1, height }}
                         title={`${minutesToTime(b.startMin)}–${minutesToTime(b.endMin)} ${b.customerName} – ${b.serviceName}${past ? " (proběhlo)" : ""}`}

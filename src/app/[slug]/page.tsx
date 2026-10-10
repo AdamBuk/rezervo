@@ -36,15 +36,47 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
 
   return (
     <div className="flex flex-1 flex-col">
-      <header className="border-b border-stone-200 bg-white">
-        <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-          <p className="text-sm font-medium text-brand-700">Online rezervace</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">{business.name}</h1>
-          {business.description && <p className="mt-2 max-w-2xl text-stone-600">{business.description}</p>}
-          <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-stone-500">
-            {business.address && <span>{business.address}</span>}
+      <header className="mx-auto w-full max-w-5xl px-4 pt-5 sm:px-6 sm:pt-8">
+        <div className="glass flex animate-[rise-in_420ms_var(--ease-out)_both] flex-col gap-4 rounded-3xl p-5 motion-reduce:animate-[fade-in_200ms_ease-out_both] sm:flex-row sm:items-center sm:justify-between sm:p-6">
+          <div className="flex min-w-0 items-center gap-4">
+            <span
+              className="grid size-14 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-brand-500 to-brand-800 text-xl font-bold text-white shadow-(--shadow-brand)"
+              aria-hidden
+            >
+              {business.name.trim().charAt(0).toUpperCase()}
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">Online rezervace</p>
+              <h1 className="truncate text-2xl font-bold tracking-tight sm:text-3xl">{business.name}</h1>
+              {business.description && (
+                <p className="mt-0.5 line-clamp-2 max-w-2xl text-sm text-stone-600">{business.description}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 text-sm sm:shrink-0 sm:flex-col sm:items-end">
+            {business.address && (
+              <a
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/80 bg-white/60 px-2.5 py-1 text-stone-600 transition-colors hover:bg-white hover:text-stone-900"
+              >
+                <svg viewBox="0 0 20 20" className="size-4 text-brand-600" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
+                  <path d="M10 17.5s5.5-4.6 5.5-9a5.5 5.5 0 1 0-11 0c0 4.4 5.5 9 5.5 9Z" />
+                  <circle cx="10" cy="8.5" r="2" />
+                </svg>
+                {business.address}
+                <span className="sr-only">(mapa, nové okno)</span>
+              </a>
+            )}
             {business.phone && (
-              <a href={`tel:${business.phone.replace(/\s/g, "")}`} className="hover:text-stone-800">
+              <a
+                href={`tel:${business.phone.replace(/\s/g, "")}`}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/80 bg-white/60 px-2.5 py-1 text-stone-600 tabular-nums transition-colors hover:bg-white hover:text-stone-900"
+              >
+                <svg viewBox="0 0 20 20" className="size-4 text-brand-600" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
+                  <path d="M6.5 3.5h-2a1 1 0 0 0-1 1.1A12.5 12.5 0 0 0 15.4 16.5a1 1 0 0 0 1.1-1v-2l-3-1.2-1.5 1.5a8.5 8.5 0 0 1-4.3-4.3l1.5-1.5Z" strokeLinejoin="round" />
+                </svg>
                 {business.phone}
               </a>
             )}
@@ -52,7 +84,7 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
         </div>
       </header>
 
-      <main id="main" tabIndex={-1} className="mx-auto grid outline-none w-full max-w-5xl flex-1 items-start gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[1fr_16rem]">
+      <main id="main" tabIndex={-1} className="mx-auto grid w-full max-w-5xl flex-1 items-start gap-4 px-4 py-4 outline-none sm:px-6 sm:py-5 lg:grid-cols-[1fr_15rem]">
         <BookingWidget
           business={business}
           services={services}
@@ -61,7 +93,7 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
           today={today}
         />
 
-        <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-5 text-sm lg:sticky lg:top-6">
+        <aside className="glass h-fit animate-[rise-in_480ms_var(--ease-out)_150ms_both] rounded-2xl p-4 text-sm motion-reduce:animate-[fade-in_200ms_ease-out_both] lg:sticky lg:top-5">
           <h2 className="font-semibold">Otevírací doba</h2>
           <dl className="mt-3 space-y-1">
             {WEEKDAYS.map((day) => {
@@ -99,7 +131,7 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
         </aside>
       </main>
 
-      <footer className="py-6 text-center text-xs text-stone-400">
+      <footer className="py-5 text-center text-xs text-stone-400">
         Rezervace přes{" "}
         <Link href="/" className="font-semibold hover:text-stone-600">
           Rezervo

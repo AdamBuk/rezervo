@@ -19,7 +19,7 @@ export function BookingActions({ bookingId, defaultDate, defaultTime, stepMinute
 
   return (
     <div className="space-y-6">
-      <form action={moveAction} className="space-y-3 rounded-xl border border-stone-200 p-4">
+      <form action={moveAction} className="space-y-3 rounded-xl border border-white/80 bg-white/50 p-4">
         <h3 className="font-semibold">Přesunout na jiný termín</h3>
         <input type="hidden" name="id" value={bookingId} />
         <div className="grid grid-cols-2 gap-3">
@@ -48,7 +48,7 @@ export function BookingActions({ bookingId, defaultDate, defaultTime, stepMinute
         <SubmitButton pendingText="Přesouvám…">Přesunout</SubmitButton>
       </form>
 
-      <form action={cancelAction} className="space-y-3 rounded-xl border border-red-100 p-4">
+      <form action={cancelAction} className="space-y-3 rounded-xl border border-red-100 bg-white/50 p-4">
         <h3 className="font-semibold">Zrušit rezervaci</h3>
         <input type="hidden" name="id" value={bookingId} />
         <FormMessage state={cancelState} />

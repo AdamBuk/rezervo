@@ -20,12 +20,12 @@ export default async function ApiPage() {
   const baseUrl = `${await getSiteUrl()}/api/v1`;
 
   return (
-    <div className="grid max-w-3xl gap-6">
+    <div className="stagger grid items-start gap-4 lg:grid-cols-2">
       <section className="card" aria-labelledby="api-key-heading">
         <h2 id="api-key-heading" className="text-lg font-semibold">
           API klíč
         </h2>
-        <p className="mt-1 mb-5 text-sm text-stone-500">
+        <p className="mt-1 mb-4 text-sm text-stone-500">
           Klíč umožní externí aplikaci (např. AI asistentovi) číst vaše služby a volné termíny a vytvářet či rušit
           rezervace. Uchovávejte ho v tajnosti – kdo ho má, může spravovat rezervace vašeho podniku.
         </p>

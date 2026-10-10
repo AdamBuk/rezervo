@@ -112,7 +112,7 @@ export function ApiKeyManager({ activeKey }: { activeKey: ActiveKey | null }) {
       )}
 
       {activeKey ? (
-        <div className="grid gap-3 rounded-xl border border-stone-200 p-4">
+        <div className="grid gap-3 rounded-xl border border-white/80 bg-white/50 p-4">
           {visibleKey ? (
             <KeyValue value={visibleKey} onHide={() => setHidden(true)} />
           ) : (
@@ -137,7 +137,7 @@ export function ApiKeyManager({ activeKey }: { activeKey: ActiveKey | null }) {
           </dl>
         </div>
       ) : (
-        <p className="rounded-xl border border-dashed border-stone-300 p-4 text-sm text-stone-500">
+        <p className="rounded-xl border border-dashed border-stone-300/80 p-4 text-sm text-stone-500">
           Zatím nemáte žádný aktivní API klíč.
         </p>
       )}
@@ -146,7 +146,7 @@ export function ApiKeyManager({ activeKey }: { activeKey: ActiveKey | null }) {
         <div
           role="group"
           aria-labelledby="api-key-confirm"
-          className="flex flex-col gap-3 rounded-xl border border-stone-200 bg-stone-50 p-4 sm:flex-row sm:items-center sm:justify-between"
+          className="flex flex-col gap-3 rounded-xl border border-white/80 bg-white/50 p-4 sm:flex-row sm:items-center sm:justify-between"
         >
           <p id="api-key-confirm" className="text-sm text-stone-700">
             {confirming === "revoke"

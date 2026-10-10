@@ -20,6 +20,13 @@
   --color-sand-100: #f3efe8;
   --color-sand-200: #e6dfd3;
 
+  /* Shadows tinted with the brand's deep teal (one light source, from above) */
+  --shadow-glass:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.75), 0 1px 2px -1px rgb(7 40 38 / 0.08), 0 10px 30px -14px rgb(7 40 38 / 0.22);
+  --shadow-lifted:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.8), 0 2px 4px -2px rgb(7 40 38 / 0.1), 0 18px 40px -18px rgb(7 40 38 / 0.32);
+  --shadow-brand: 0 1px 0 0 rgb(255 255 255 / 0.18) inset, 0 6px 16px -8px rgb(25 103 94 / 0.6);
+
   /* Motion: strong custom curves (built-in ease-out is too weak to feel intentional) */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
@@ -28,14 +35,48 @@
 html {
   /* Keep focused/anchored elements clear of the sticky header */
   scroll-padding-top: 5rem;
+  scroll-behavior: smooth;
   -webkit-tap-highlight-color: transparent;
   /* No font inflation in landscape */
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 body {
   @apply bg-sand-50 text-stone-900 antialiased;
+  isolation: isolate;
+}
+
+/* Ambient backdrop: soft teal/sand light pools give the glass surfaces something to refract. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  background:
+    radial-gradient(42rem 30rem at 8% -6%, rgb(121 213 195 / 0.38), transparent 70%),
+    radial-gradient(36rem 28rem at 96% 4%, rgb(230 223 211 / 0.9), transparent 70%),
+    radial-gradient(40rem 32rem at 70% 108%, rgb(174 232 218 / 0.35), transparent 70%),
+    radial-gradient(30rem 24rem at -4% 92%, rgb(243 239 232 / 0.95), transparent 70%);
+}
+
+/* Fine grain breaks the digital flatness of the gradients. */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 h1,
@@ -74,10 +115,10 @@ button,
 }
 
 @utility skip-link {
-  @apply fixed top-3 left-3 z-50 -translate-y-20 rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white shadow-lg transition-transform focus-visible:translate-y-0 motion-reduce:transition-none;
+  @apply pointer-events-none fixed top-3 left-3 z-50 -translate-y-20 rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white opacity-0 shadow-lg transition-[transform,opacity] focus-visible:pointer-events-auto focus-visible:translate-y-0 focus-visible:opacity-100 motion-reduce:transition-none;
 }
 
-/* Motion: short, ease-out entrances; disabled via motion-reduce:animate-none where used */
+/* Motion: short, ease-out entrances */
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -91,30 +132,78 @@ button,
 }
 @keyframes rise-in {
   from {
-    transform: translateY(6px);
+    transform: translateY(8px);
     opacity: 0;
+  }
+}
+
+/* Staggered entrance: children cascade in 50ms apart (fade only with reduced motion). */
+.stagger > * {
+  animation: rise-in 480ms var(--ease-out) both;
+}
+.stagger > :nth-child(2) {
+  animation-delay: 50ms;
+}
+.stagger > :nth-child(3) {
+  animation-delay: 100ms;
+}
+.stagger > :nth-child(4) {
+  animation-delay: 150ms;
+}
+.stagger > :nth-child(5) {
+  animation-delay: 200ms;
+}
+.stagger > :nth-child(n + 6) {
+  animation-delay: 250ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .stagger > * {
+    animation: fade-in 200ms ease-out both;
+  }
+}
+
+/* Glass surfaces: translucent fill, blur + saturation, 1px light edge and inner highlight */
+@utility glass {
+  @apply border border-white/70 bg-white/60 shadow-(--shadow-glass) backdrop-blur-xl backdrop-saturate-150;
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    background-color: rgb(255 255 255 / 0.94);
+  }
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: rgb(255 255 255 / 0.96);
+  }
+}
+@utility glass-strong {
+  @apply border-white/80 bg-white/75 shadow-(--shadow-glass) backdrop-blur-2xl backdrop-saturate-150;
+
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: rgb(255 255 255 / 0.97);
   }
 }
 
 /* Shared form controls (defined as utilities so they compose with @apply) */
 @utility input {
-  @apply block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 shadow-xs placeholder:text-stone-400 pointer-coarse:text-base focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none disabled:bg-stone-100;
+  @apply block w-full rounded-lg border border-stone-300/80 bg-white/85 px-3 py-2 text-sm text-stone-900 shadow-xs transition-[border-color,box-shadow] duration-150 placeholder:text-stone-400 pointer-coarse:text-base hover:border-stone-400/80 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15 focus:outline-none disabled:bg-stone-100;
 }
 @utility label {
   @apply mb-1 block text-sm font-medium text-stone-700;
 }
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-[color,background-color,border-color,transform] duration-150 ease-(--ease-out) select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 motion-reduce:active:scale-100;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-(--ease-out) select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 motion-reduce:active:scale-100;
 }
 @utility btn-primary {
-  @apply btn bg-brand-700 text-white hover:bg-brand-800;
+  @apply btn bg-linear-to-b from-brand-600 to-brand-700 text-white shadow-(--shadow-brand) hover:from-brand-700 hover:to-brand-800;
 }
 @utility btn-secondary {
-  @apply btn border border-stone-300 bg-white text-stone-800 hover:bg-stone-50;
+  @apply btn border border-stone-300/70 bg-white/70 text-stone-800 shadow-xs backdrop-blur hover:border-stone-400/70 hover:bg-white;
 }
 @utility btn-danger {
-  @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50;
+  @apply btn border border-red-200 bg-white/70 text-red-700 backdrop-blur hover:border-red-300 hover:bg-red-50;
 }
 @utility card {
-  @apply rounded-2xl border border-stone-200 bg-white p-6 shadow-xs;
+  @apply glass rounded-2xl p-5;
+}
+/* Rows inside a glass panel (lists, tables) */
+@utility panel-row {
+  @apply px-4 py-3 transition-colors duration-150 hover:bg-white/60;
 }

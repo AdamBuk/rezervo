@@ -11,12 +11,13 @@ const items = [
   { href: "/dashboard/api", label: "API" },
 ] as const;
 
+/** Segmented glass navigation; scrolls sideways on narrow screens. */
 export function DashboardNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
-      <ul className="flex min-w-max gap-1 border-b border-stone-200">
+    <nav aria-label="Administrace" className="-mx-4 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
+      <ul className="glass inline-flex min-w-max gap-1 rounded-xl p-1">
         {items.map((item) => {
           const active = item.href === "/dashboard" ? pathname === item.href : pathname.startsWith(item.href);
           return (
@@ -24,10 +25,10 @@ export function DashboardNav() {
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
-                className={`-mb-px block border-b-2 px-3 py-2 text-sm font-medium transition-colors ${
+                className={`block rounded-lg px-3.5 py-1.5 text-sm font-medium transition-[color,background-color,box-shadow] duration-200 ease-(--ease-out) ${
                   active
-                    ? "border-brand-700 text-brand-800"
-                    : "border-transparent text-stone-500 hover:border-stone-300 hover:text-stone-800"
+                    ? "bg-white text-brand-800 shadow-(--shadow-glass)"
+                    : "text-stone-600 hover:bg-white/60 hover:text-stone-900"
                 }`}
               >
                 {item.label}

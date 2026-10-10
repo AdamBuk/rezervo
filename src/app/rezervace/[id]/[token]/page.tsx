@@ -62,7 +62,7 @@ export default async function ManageBookingPage({ params }: PageProps<"/rezervac
           <StatusBadge status={booking.status} isPast={isPast} />
         </div>
 
-        <dl className="mt-5 space-y-2 rounded-xl bg-sand-50 p-4 text-sm">
+        <dl className="mt-4 space-y-2 rounded-xl border border-white/80 bg-white/60 p-4 text-sm">
           <div className="flex justify-between gap-4">
             <dt className="text-stone-500">Jméno</dt>
             <dd className="min-w-0 truncate font-medium">{booking.customer_name}</dd>

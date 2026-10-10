@@ -14,13 +14,13 @@ export function HoursForm({ hours }: { hours: OpeningHours[] }) {
 
   return (
     <form action={formAction} className="space-y-4">
-      <ul className="divide-y divide-stone-100">
+      <ul className="divide-y divide-stone-200/60">
         {WEEKDAYS.map((day) => {
           const current = hours.find((h) => h.weekday === day.iso);
           const isOpen = openDays.has(day.iso);
           return (
-            <li key={day.iso} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
-              <label className="flex w-36 items-center gap-2 font-medium">
+            <li key={day.iso} className="flex flex-wrap items-center gap-x-4 gap-y-2 py-2">
+              <label className="flex w-32 items-center gap-2 font-medium">
                 <input
                   type="checkbox"
                   name={`open_${day.iso}`}
@@ -44,7 +44,7 @@ export function HoursForm({ hours }: { hours: OpeningHours[] }) {
                     step={300}
                     required
                     defaultValue={current ? trimSeconds(current.opens_at) : "09:00"}
-                    className="input w-32"
+                    className="input w-28 py-1.5"
                   />
                   <span className="text-stone-400">–</span>
                   <input
@@ -54,7 +54,7 @@ export function HoursForm({ hours }: { hours: OpeningHours[] }) {
                     step={300}
                     required
                     defaultValue={current ? trimSeconds(current.closes_at) : "17:00"}
-                    className="input w-32"
+                    className="input w-28 py-1.5"
                   />
                 </div>
               ) : (

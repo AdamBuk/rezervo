@@ -3,8 +3,8 @@ import { Logo } from "./logo";
 
 export function SiteHeader() {
   return (
-    <header className="sticky top-0 z-30 border-b border-stone-200/70 bg-sand-50/80 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+    <header className="glass-strong sticky top-0 z-30 border-b">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
         <Logo />
         <nav className="flex items-center gap-1 text-sm sm:gap-2" aria-label="Hlavní navigace">
           <Link

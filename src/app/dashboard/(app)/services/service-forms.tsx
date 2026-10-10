@@ -11,8 +11,8 @@ import { createService, deleteService, updateService } from "./actions";
 function ServiceFields({ service }: { service?: Service }) {
   const idPrefix = service?.id ?? "new";
   return (
-    <div className="grid gap-4 sm:grid-cols-[2fr_1fr_1fr]">
-      <div>
+    <div className="grid grid-cols-2 gap-3 @lg:grid-cols-[2fr_1fr_1fr]">
+      <div className="col-span-2 @lg:col-span-1">
         <label htmlFor={`${idPrefix}-name`} className="label">
           Název
         </label>
@@ -57,7 +57,7 @@ function ServiceFields({ service }: { service?: Service }) {
           className="input"
         />
       </div>
-      <div className="sm:col-span-3">
+      <div className="col-span-2 @lg:col-span-3">
         <label htmlFor={`${idPrefix}-description`} className="label">
           Popis <span className="font-normal text-stone-400">(nepovinné)</span>
         </label>
@@ -82,7 +82,7 @@ export function NewServiceForm() {
   }, [state]);
 
   return (
-    <form ref={formRef} action={formAction} className="space-y-4">
+    <form ref={formRef} action={formAction} className="@container space-y-4">
       <ServiceFields />
       <FormMessage state={state} />
       <SubmitButton pendingText="Přidávám…">Přidat službu</SubmitButton>
@@ -95,27 +95,33 @@ export function ServiceItem({ service }: { service: Service }) {
   const [deleteState, deleteAction] = useActionState(deleteService, undefined);
 
   return (
-    <details className="group rounded-xl border border-stone-200 bg-white open:shadow-sm">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3 [&::-webkit-details-marker]:hidden">
+    <details className="group transition-colors open:bg-white/70">
+      {/* Table-like row: name | duration | price | action, columns aligned across rows */}
+      <summary className="panel-row grid cursor-pointer list-none grid-cols-[1fr_auto] items-center gap-x-4 gap-y-0.5 sm:grid-cols-[1fr_6rem_6rem_4.5rem] [&::-webkit-details-marker]:hidden">
         <div className="min-w-0">
-          <p className="truncate font-medium">
-            {service.name}
+          <p className="flex items-center gap-2 font-medium">
+            <span className="truncate">{service.name}</span>
             {!service.is_active && (
-              <span className="ml-2 rounded-full bg-stone-100 px-2 py-0.5 text-xs font-medium text-stone-500">
+              <span className="shrink-0 rounded-md bg-stone-200/70 px-1.5 py-0.5 text-[0.7rem] font-semibold text-stone-500">
                 skrytá
               </span>
             )}
           </p>
-          <p className="text-sm text-stone-500">
+          {service.description && <p className="truncate text-sm text-stone-500">{service.description}</p>}
+          <p className="text-sm text-stone-500 tabular-nums sm:hidden">
             {formatDuration(service.duration_minutes)} · {formatPrice(service.price_czk)}
           </p>
         </div>
-        <span className="shrink-0 text-sm font-medium text-brand-700 group-open:hidden">Upravit</span>
-        <span className="hidden shrink-0 text-sm font-medium text-stone-500 group-open:inline">Zavřít</span>
+        <span className="hidden text-right text-sm text-stone-600 tabular-nums sm:block">
+          {formatDuration(service.duration_minutes)}
+        </span>
+        <span className="hidden text-right text-sm font-semibold tabular-nums sm:block">{formatPrice(service.price_czk)}</span>
+        <span className="text-right text-sm font-medium text-brand-700 group-open:hidden">Upravit</span>
+        <span className="hidden text-right text-sm font-medium text-stone-500 group-open:inline">Zavřít</span>
       </summary>
 
-      <div className="space-y-4 border-t border-stone-100 p-4">
-        <form action={updateAction} className="space-y-4">
+      <div className="animate-[rise-in_220ms_var(--ease-out)] space-y-4 border-t border-stone-200/60 p-4 motion-reduce:animate-none">
+        <form action={updateAction} className="@container space-y-4">
           <input type="hidden" name="id" value={service.id} />
           <ServiceFields service={service} />
           <label className="flex items-center gap-2 text-sm">
@@ -131,7 +137,7 @@ export function ServiceItem({ service }: { service: Service }) {
           <SubmitButton>Uložit</SubmitButton>
         </form>
 
-        <form action={deleteAction} className="border-t border-stone-100 pt-4">
+        <form action={deleteAction} className="border-t border-stone-200/60 pt-4">
           <input type="hidden" name="id" value={service.id} />
           <FormMessage state={deleteState} />
           <div className="mt-2">

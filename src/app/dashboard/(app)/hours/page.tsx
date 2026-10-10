@@ -22,7 +22,7 @@ export default async function HoursPage() {
   ]);
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-2">
+    <div className="stagger grid items-start gap-4 lg:grid-cols-2">
       <section className="card" aria-labelledby="hours-heading">
         <h2 id="hours-heading" className="text-lg font-semibold">
           Otevírací doba
