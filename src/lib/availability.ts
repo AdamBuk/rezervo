@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { createPublicClient } from "@/lib/supabase/public";
-import { computeAvailableSlots } from "@/lib/slots";
+import { computeAvailableSlots, findNextAvailableDate } from "@/lib/slots";
 import { addDays, isoWeekday, isValidDateString, todayInTimeZone, zonedTimeToUtc } from "@/lib/time";
 import { BOOKING_HORIZON_DAYS, MIN_NOTICE_MINUTES } from "@/lib/constants";
 
@@ -31,8 +31,18 @@ export const getPublicBusiness = cache(async (slug: string) => {
 
 export type PublicBusiness = NonNullable<Awaited<ReturnType<typeof getPublicBusiness>>>;
 
-/** Available start times (ISO strings) for a service on a calendar day. */
-export async function getAvailableSlots(slug: string, serviceId: string, date: string): Promise<string[] | null> {
+/** How many days ahead to look for the nearest free day (one DB query covers all of them). */
+const NEXT_AVAILABLE_LOOKAHEAD_DAYS = 21;
+
+export type DayAvailability = {
+  /** Available start times (ISO strings) on the requested day */
+  slots: string[];
+  /** When the day is full or closed: the nearest later day with a free slot, if any within the lookahead */
+  nextAvailable: string | null;
+};
+
+/** Free start times for a service on a calendar day, plus the nearest free day when that one is full. */
+export async function getAvailability(slug: string, serviceId: string, date: string): Promise<DayAvailability | null> {
   const data = await getPublicBusiness(slug);
   if (!data || !isValidDateString(date)) return null;
 
@@ -41,30 +51,32 @@ export async function getAvailableSlots(slug: string, serviceId: string, date: s
   if (!service) return null;
 
   const today = todayInTimeZone(business.timezone);
-  if (date < today || date > addDays(today, BOOKING_HORIZON_DAYS)) return [];
+  const lastBookable = addDays(today, BOOKING_HORIZON_DAYS);
+  if (date < today || date > lastBookable) return { slots: [], nextAvailable: null };
 
-  const opening = hours.find((h) => h.weekday === isoWeekday(date)) ?? null;
-  if (!opening) return [];
-
-  const dayStart = zonedTimeToUtc(date, 0, business.timezone);
-  const dayEnd = zonedTimeToUtc(addDays(date, 1), 0, business.timezone);
-
+  const lookaheadEnd = [addDays(date, NEXT_AVAILABLE_LOOKAHEAD_DAYS), lastBookable].sort()[0];
   const supabase = createPublicClient();
   const { data: busy, error } = await supabase.rpc("get_busy_intervals", {
     p_business_id: business.id,
-    p_from: dayStart.toISOString(),
-    p_to: dayEnd.toISOString(),
+    p_from: zonedTimeToUtc(date, 0, business.timezone).toISOString(),
+    p_to: zonedTimeToUtc(addDays(lookaheadEnd, 1), 0, business.timezone).toISOString(),
   });
   if (error) throw error;
 
-  return computeAvailableSlots({
-    date,
+  const input = {
     timeZone: business.timezone,
-    opening,
     durationMinutes: service.duration_minutes,
     stepMinutes: business.slot_step_minutes,
     busy: (busy ?? []).map((b) => ({ start: new Date(b.starts_at), end: new Date(b.ends_at) })),
     now: new Date(),
     minNoticeMinutes: MIN_NOTICE_MINUTES,
-  }).map((d) => d.toISOString());
+  };
+  const openingFor = (day: string) => hours.find((h) => h.weekday === isoWeekday(day)) ?? null;
+
+  const slots = computeAvailableSlots({ ...input, date, opening: openingFor(date) }).map((d) => d.toISOString());
+  const nextAvailable = slots.length
+    ? null
+    : findNextAvailableDate({ ...input, from: addDays(date, 1), to: lookaheadEnd, openingFor });
+
+  return { slots, nextAvailable };
 }

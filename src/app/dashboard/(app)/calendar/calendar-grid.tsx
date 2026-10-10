@@ -16,6 +16,8 @@ type Props = {
   timeZone: string;
   bookings: CalendarBooking[];
   hours: { weekday: number; opens_at: string; closes_at: string }[];
+  /** Current local day and minutes since midnight in the business timezone */
+  now: { date: string; minutes: number };
   bookingHref: (id: string) => string;
   dayHref: (date: string) => string;
   selectedId: string | null;
@@ -25,7 +27,7 @@ const HOUR_HEIGHT = 56; // px
 const PX_PER_MIN = HOUR_HEIGHT / 60;
 
 /** Time-grid calendar (one column per day) with bookings positioned by time. */
-export function CalendarGrid({ days, today, timeZone, bookings, hours, bookingHref, dayHref, selectedId }: Props) {
+export function CalendarGrid({ days, today, timeZone, bookings, hours, now, bookingHref, dayHref, selectedId }: Props) {
   const placed = bookings.map((b) => {
     const start = toZoned(new Date(b.startsAt), timeZone);
     const durationMin = (new Date(b.endsAt).getTime() - new Date(b.startsAt).getTime()) / 60_000;
@@ -46,10 +48,11 @@ export function CalendarGrid({ days, today, timeZone, bookings, hours, bookingHr
 
   return (
     <div className="overflow-x-auto rounded-2xl border border-stone-200 bg-white">
-      <div className={isWeek ? "min-w-[760px]" : ""}>
+      <div className={isWeek ? "min-w-[680px]" : ""}>
         {/* Day headers */}
         <div className="grid border-b border-stone-200" style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, 1fr)` }}>
-          <div />
+          {/* Sticky so the time column stays visible when the week scrolls sideways on phones */}
+          <div className="sticky left-0 z-20 bg-white" />
           {days.map((d) => {
             const wd = WEEKDAYS[isoWeekday(d) - 1];
             const isToday = d === today;
@@ -71,7 +74,7 @@ export function CalendarGrid({ days, today, timeZone, bookings, hours, bookingHr
 
         {/* Time grid */}
         <div className="grid" style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, 1fr)` }}>
-          <div className="relative" style={{ height: gridHeight }}>
+          <div className="sticky left-0 z-20 bg-white" style={{ height: gridHeight }}>
             {hourLabels.map((h, i) => (
               <span key={h} className="absolute right-2 -translate-y-1/2 text-xs text-stone-400 tabular-nums" style={{ top: i * HOUR_HEIGHT }}>
                 {i === 0 ? "" : `${h}:00`}
@@ -91,23 +94,36 @@ export function CalendarGrid({ days, today, timeZone, bookings, hours, bookingHr
                 {hourLabels.map((h, i) => (
                   <div key={h} className="absolute inset-x-0 border-t border-stone-100" style={{ top: i * HOUR_HEIGHT }} />
                 ))}
+                {/* Current time */}
+                {d === now.date && now.minutes >= gridStart && now.minutes <= lastHour * 60 && (
+                  <div
+                    className="pointer-events-none absolute inset-x-0 z-10 border-t-2 border-red-500"
+                    style={{ top: (now.minutes - gridStart) * PX_PER_MIN }}
+                    aria-hidden
+                  >
+                    <span className="absolute -top-[5px] -left-[5px] size-2 rounded-full bg-red-500" />
+                  </div>
+                )}
                 {placed
                   .filter((b) => b.date === d)
                   .map((b) => {
                     const height = Math.max((b.endMin - b.startMin) * PX_PER_MIN - 2, 18);
                     const compact = height < 40;
+                    const past = b.date < now.date || (b.date === now.date && b.endMin <= now.minutes);
                     return (
                       <Link
                         key={b.id}
                         href={bookingHref(b.id)}
                         scroll={false}
-                        className={`absolute inset-x-1 overflow-hidden rounded-md border-l-4 px-2 py-1 text-xs shadow-xs transition-colors ${
+                        className={`absolute inset-x-1 overflow-hidden rounded-md border-l-4 px-2 py-1 text-xs shadow-xs transition-colors focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 ${
                           b.id === selectedId
                             ? "border-brand-900 bg-brand-700 text-white"
-                            : "border-brand-600 bg-brand-100 text-brand-950 hover:bg-brand-200"
+                            : past
+                              ? "border-stone-300 bg-stone-100 text-stone-500 hover:bg-stone-200"
+                              : "border-brand-600 bg-brand-100 text-brand-950 hover:bg-brand-200"
                         }`}
                         style={{ top: (b.startMin - gridStart) * PX_PER_MIN + 1, height }}
-                        title={`${minutesToTime(b.startMin)} ${b.customerName} – ${b.serviceName}`}
+                        title={`${minutesToTime(b.startMin)}–${minutesToTime(b.endMin)} ${b.customerName} – ${b.serviceName}${past ? " (proběhlo)" : ""}`}
                       >
                         <span className="block truncate">
                           <span className="font-semibold tabular-nums">{minutesToTime(b.startMin)}</span>{" "}

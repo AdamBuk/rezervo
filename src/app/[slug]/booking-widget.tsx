@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { formatDuration, formatPrice } from "@/lib/format";
 import { addDays, formatDateLong, formatInTimeZone, formatTime, isoWeekday } from "@/lib/time";
 import { BOOKING_HORIZON_DAYS, WEEKDAYS } from "@/lib/constants";
 import type { PublicBusiness } from "@/lib/availability";
 import { createBooking, type BookingState } from "./actions";
+import { AddToCalendar } from "./add-to-calendar";
 
 type Props = {
   business: PublicBusiness["business"];
@@ -16,11 +17,28 @@ type Props = {
   today: string;
 };
 
-type SlotsState = { status: "idle" } | { status: "loading" } | { status: "error" } | { status: "ready"; slots: string[] };
+type SlotsResult = { key: string; slots: string[]; nextAvailable: string | null } | { key: string; failed: true };
 
 const DAYS_PER_PAGE = 7;
 
-export function BookingWidget({ business, services, openWeekdays, today }: Props) {
+function daysBetween(from: string, to: string): number {
+  return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
+/** Brings a step into view when it starts below the fold (mostly on phones). */
+function revealStep(el: HTMLElement | null) {
+  if (!el || el.getBoundingClientRect().top < window.innerHeight * 0.6) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+}
+
+export function BookingWidget(props: Props) {
+  // Remounting the flow is the simplest way to start a fresh booking after success.
+  const [round, setRound] = useState(0);
+  return <BookingFlow key={round} {...props} onRestart={() => setRound((r) => r + 1)} />;
+}
+
+function BookingFlow({ business, services, openWeekdays, today, onRestart }: Props & { onRestart: () => void }) {
   const [serviceId, setServiceId] = useState<string | null>(services.length === 1 ? services[0].id : null);
   const firstOpenDay = useMemo(() => {
     for (let i = 0; i <= BOOKING_HORIZON_DAYS; i++) {
@@ -30,13 +48,16 @@ export function BookingWidget({ business, services, openWeekdays, today }: Props
     return today;
   }, [today, openWeekdays]);
   const [date, setDate] = useState(firstOpenDay);
+  const [dateTouched, setDateTouched] = useState(false);
   const [pageStart, setPageStart] = useState(today);
   const [reloadKey, setReloadKey] = useState(0);
   // Results are tagged with the request key, so stale responses are ignored and
   // "loading" is simply "no result for the current key yet".
-  const [result, setResult] = useState<{ key: string; slots: string[] | null } | null>(null);
+  const [result, setResult] = useState<SlotsResult | null>(null);
   const [selection, setSelection] = useState<{ key: string; slot: string } | null>(null);
   const [customer, setCustomer] = useState({ name: "", email: "", phone: "" });
+  const step2Ref = useRef<HTMLElement>(null);
+  const step3Ref = useRef<HTMLElement>(null);
 
   const [state, formAction] = useActionState<BookingState, FormData>(async (prev, formData) => {
     const next = await createBooking(prev, formData);
@@ -47,14 +68,16 @@ export function BookingWidget({ business, services, openWeekdays, today }: Props
 
   const service = services.find((s) => s.id === serviceId);
   const requestKey = serviceId ? `${serviceId}|${date}|${reloadKey}` : null;
-  const slotsState: SlotsState = !requestKey
-    ? { status: "idle" }
-    : result?.key !== requestKey
-      ? { status: "loading" }
-      : result.slots
-        ? { status: "ready", slots: result.slots }
-        : { status: "error" };
+  const current = result && result.key === requestKey ? result : null;
   const slot = selection && selection.key === requestKey ? selection.slot : null;
+  const lastBookableDay = addDays(today, BOOKING_HORIZON_DAYS);
+
+  const pageFor = (d: string) => addDays(today, Math.floor(daysBetween(today, d) / DAYS_PER_PAGE) * DAYS_PER_PAGE);
+  const goToDate = (d: string, touched: boolean) => {
+    setDate(d);
+    setPageStart(pageFor(d));
+    if (touched) setDateTouched(true);
+  };
 
   useEffect(() => {
     if (!requestKey || !serviceId) return;
@@ -62,27 +85,60 @@ export function BookingWidget({ business, services, openWeekdays, today }: Props
     const params = new URLSearchParams({ slug: business.slug, service: serviceId, date });
     fetch(`/api/slots?${params}`, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((data: { slots: string[] }) => setResult({ key: requestKey, slots: data.slots }))
+      .then((data: { slots: string[]; nextAvailable: string | null }) => {
+        // Until the customer picks a day, skip straight to the nearest day with free times.
+        if (!dateTouched && data.slots.length === 0 && data.nextAvailable) {
+          setDate(data.nextAvailable);
+          setPageStart(addDays(today, Math.floor(daysBetween(today, data.nextAvailable) / DAYS_PER_PAGE) * DAYS_PER_PAGE));
+          return;
+        }
+        setResult({ key: requestKey, slots: data.slots, nextAvailable: data.nextAvailable });
+      })
       .catch(() => {
-        if (!controller.signal.aborted) setResult({ key: requestKey, slots: null });
+        if (!controller.signal.aborted) setResult({ key: requestKey, failed: true });
       });
     return () => controller.abort();
-  }, [business.slug, serviceId, date, requestKey]);
+  }, [business.slug, serviceId, date, requestKey, dateTouched, today]);
 
   if (state.status === "success") {
     return (
-      <div className="card text-center" role="status">
-        <div className="mx-auto grid size-12 place-items-center rounded-full bg-brand-100 text-2xl text-brand-700">✓</div>
+      <div className="card animate-[rise-in_250ms_ease-out] text-center motion-reduce:animate-none" role="status">
+        <div className="mx-auto grid size-14 place-items-center rounded-full bg-brand-100 text-brand-700">
+          <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
+            <path d="M5 12.5l4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
         <h2 className="mt-4 text-xl font-bold">Rezervace je potvrzená</h2>
         <p className="mt-2 text-stone-600">
           <strong className="text-stone-900">{state.serviceName}</strong>
           <br />
-          {formatInTimeZone(state.startsAt, business.timezone, { weekday: "long", day: "numeric", month: "long" })} v{" "}
-          {formatTime(state.startsAt, business.timezone)}
+          <span className="first-letter:uppercase">
+            {formatInTimeZone(state.startsAt, business.timezone, { weekday: "long", day: "numeric", month: "long" })} v{" "}
+            {formatTime(state.startsAt, business.timezone)}
+          </span>
+          {business.address && (
+            <>
+              <br />
+              <span className="text-sm">{business.address}</span>
+            </>
+          )}
         </p>
         <p className="mt-4 text-sm text-stone-500">
-          Potvrzení jsme poslali na <strong>{state.email}</strong>. Den předem vám pošleme připomínku.
+          Potvrzení jsme poslali na <strong className="break-all">{state.email}</strong>. Den předem vám pošleme připomínku.
         </p>
+        <div className="mt-6 flex flex-col items-center gap-3">
+          <AddToCalendar
+            uid={state.bookingId}
+            title={`${state.serviceName} – ${business.name}`}
+            startsAt={state.startsAt}
+            durationMinutes={state.durationMinutes}
+            location={business.address}
+            description={business.phone ? `Změna termínu: ${business.phone}` : undefined}
+          />
+          <button type="button" onClick={onRestart} className="text-sm font-semibold text-brand-700 hover:underline">
+            Vytvořit další rezervaci
+          </button>
+        </div>
       </div>
     );
   }
@@ -92,13 +148,14 @@ export function BookingWidget({ business, services, openWeekdays, today }: Props
   }
 
   const days = Array.from({ length: DAYS_PER_PAGE }, (_, i) => addDays(pageStart, i));
-  const lastBookableDay = addDays(today, BOOKING_HORIZON_DAYS);
 
   return (
     <div className="space-y-6">
       {/* Step 1: service */}
-      <section className="card">
-        <StepTitle n={1}>Vyberte službu</StepTitle>
+      <section className="card" aria-labelledby="step-1">
+        <StepTitle id="step-1" n={1} done={Boolean(service)}>
+          Vyberte službu
+        </StepTitle>
         <div className="mt-4 grid gap-2">
           {services.map((s) => {
             const selected = s.id === serviceId;
@@ -107,8 +164,11 @@ export function BookingWidget({ business, services, openWeekdays, today }: Props
                 key={s.id}
                 type="button"
                 aria-pressed={selected}
-                onClick={() => setServiceId(s.id)}
-                className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-colors ${
+                onClick={() => {
+                  setServiceId(s.id);
+                  requestAnimationFrame(() => revealStep(step2Ref.current));
+                }}
+                className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-[background-color,border-color,box-shadow] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.99] motion-reduce:active:scale-100 ${
                   selected
                     ? "border-brand-600 bg-brand-50 ring-1 ring-brand-600"
                     : "border-stone-200 hover:border-stone-300 hover:bg-stone-50"
@@ -119,7 +179,7 @@ export function BookingWidget({ business, services, openWeekdays, today }: Props
                   {s.description && <span className="block text-sm text-stone-500">{s.description}</span>}
                 </span>
                 <span className="shrink-0 text-right text-sm">
-                  <span className="block font-semibold">{formatPrice(s.price_czk)}</span>
+                  <span className="block font-semibold tabular-nums">{formatPrice(s.price_czk)}</span>
                   <span className="block text-stone-500">{formatDuration(s.duration_minutes)}</span>
                 </span>
               </button>
@@ -129,9 +189,16 @@ export function BookingWidget({ business, services, openWeekdays, today }: Props
       </section>
 
       {/* Step 2: day and time */}
-      <section className={`card ${service ? "" : "opacity-50"}`} inert={!service}>
+      <section
+        ref={step2Ref}
+        aria-labelledby="step-2"
+        className={`card scroll-mt-4 transition-opacity ${service ? "" : "opacity-50"}`}
+        inert={!service}
+      >
         <div className="flex items-center justify-between gap-2">
-          <StepTitle n={2}>Vyberte termín</StepTitle>
+          <StepTitle id="step-2" n={2} done={Boolean(slot)}>
+            Vyberte termín
+          </StepTitle>
           <div className="flex gap-1">
             <button
               type="button"
@@ -165,48 +232,67 @@ export function BookingWidget({ business, services, openWeekdays, today }: Props
                 type="button"
                 disabled={closed}
                 aria-pressed={selected}
-                onClick={() => setDate(d)}
-                className={`rounded-lg border px-1 py-2 text-center text-sm transition-colors ${
+                aria-label={`${formatDateLong(d)}${closed ? " – zavřeno" : ""}`}
+                onClick={() => goToDate(d, true)}
+                className={`rounded-lg border px-1 py-2 text-center text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${
                   selected
                     ? "border-brand-700 bg-brand-700 text-white"
                     : closed
                       ? "cursor-not-allowed border-stone-100 bg-stone-50 text-stone-300"
-                      : "border-stone-200 hover:border-brand-400"
+                      : "border-stone-200 hover:border-brand-400 hover:bg-brand-50"
                 }`}
               >
                 <span className="block text-xs font-medium uppercase">{weekday.short}</span>
                 <span className="block font-semibold">{Number(d.slice(8))}.</span>
+                {d === today && <span className={`mx-auto mt-0.5 block size-1 rounded-full ${selected ? "bg-white" : "bg-brand-600"}`} aria-hidden />}
               </button>
             );
           })}
         </div>
 
         <p className="mt-5 text-sm font-medium first-letter:uppercase">{formatDateLong(date)}</p>
-        <div className="mt-2 min-h-12">
-          {!service ? null : slotsState.status !== "ready" && slotsState.status !== "error" ? (
+        <div className="mt-2 min-h-12" aria-live="polite">
+          {!service ? null : !current ? (
             <div className="grid grid-cols-4 gap-2 sm:grid-cols-6" aria-label="Načítám volné termíny">
               {Array.from({ length: 6 }, (_, i) => (
                 <div key={i} className="h-9 animate-pulse rounded-lg bg-stone-100" />
               ))}
             </div>
-          ) : slotsState.status === "error" ? (
+          ) : "failed" in current ? (
             <p className="text-sm text-red-700">
               Volné termíny se nepodařilo načíst.{" "}
               <button type="button" className="font-semibold underline" onClick={() => setReloadKey((k) => k + 1)}>
                 Zkusit znovu
               </button>
             </p>
-          ) : slotsState.slots.length === 0 ? (
-            <p className="text-sm text-stone-500">V tento den už nejsou volné termíny. Zkuste jiný den.</p>
+          ) : current.slots.length === 0 ? (
+            <div className="rounded-xl bg-sand-100 px-4 py-3 text-sm text-stone-600">
+              <p>V tento den už nejsou volné termíny.</p>
+              {current.nextAvailable ? (
+                <button
+                  type="button"
+                  onClick={() => goToDate(current.nextAvailable!, true)}
+                  className="mt-2 inline-flex items-center gap-1 font-semibold text-brand-700 hover:underline"
+                >
+                  Nejbližší volný termín: <span className="first-letter:uppercase">{formatDateLong(current.nextAvailable)}</span> →
+                </button>
+              ) : (
+                <p className="mt-1">Zkuste prosím jiný týden, nebo podnik kontaktujte telefonicky.</p>
+              )}
+            </div>
           ) : (
-            <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
-              {slotsState.slots.map((s) => (
+            <div key={requestKey} className="grid animate-[rise-in_200ms_ease-out] grid-cols-4 gap-2 motion-reduce:animate-none sm:grid-cols-6">
+              {current.slots.map((s) => (
                 <button
                   key={s}
                   type="button"
                   aria-pressed={s === slot}
-                  onClick={() => requestKey && setSelection({ key: requestKey, slot: s })}
-                  className={`rounded-lg border py-2 text-sm font-medium tabular-nums transition-colors ${
+                  onClick={() => {
+                    if (!requestKey) return;
+                    setSelection({ key: requestKey, slot: s });
+                    requestAnimationFrame(() => revealStep(step3Ref.current));
+                  }}
+                  className={`rounded-lg border py-2 text-sm font-medium tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${
                     s === slot
                       ? "border-brand-700 bg-brand-700 text-white"
                       : "border-stone-200 hover:border-brand-400 hover:bg-brand-50"
@@ -221,8 +307,15 @@ export function BookingWidget({ business, services, openWeekdays, today }: Props
       </section>
 
       {/* Step 3: contact details */}
-      <section className={`card ${slot ? "" : "opacity-50"}`} inert={!slot}>
-        <StepTitle n={3}>Vaše údaje</StepTitle>
+      <section
+        ref={step3Ref}
+        aria-labelledby="step-3"
+        className={`card scroll-mt-4 transition-opacity ${slot ? "" : "opacity-50"}`}
+        inert={!slot}
+      >
+        <StepTitle id="step-3" n={3} done={false}>
+          Vaše údaje
+        </StepTitle>
         <form action={formAction} className="mt-4 space-y-4">
           <input type="hidden" name="slug" value={business.slug} />
           <input type="hidden" name="service_id" value={serviceId ?? ""} />
@@ -258,6 +351,7 @@ export function BookingWidget({ business, services, openWeekdays, today }: Props
                 id="email"
                 name="email"
                 type="email"
+                inputMode="email"
                 required
                 autoComplete="email"
                 value={customer.email}
@@ -273,8 +367,10 @@ export function BookingWidget({ business, services, openWeekdays, today }: Props
                 id="phone"
                 name="phone"
                 type="tel"
+                inputMode="tel"
                 required
                 autoComplete="tel"
+                placeholder="+420 777 123 456"
                 pattern="\+?[\d\s\(\)\-]{6,30}"
                 value={customer.phone}
                 onChange={(e) => setCustomer({ ...customer, phone: e.target.value })}
@@ -290,27 +386,41 @@ export function BookingWidget({ business, services, openWeekdays, today }: Props
           )}
 
           {service && slot && (
-            <div className="rounded-lg bg-sand-100 px-4 py-3 text-sm">
-              <span className="font-semibold">{service.name}</span> ·{" "}
-              {formatInTimeZone(slot, business.timezone, { weekday: "short", day: "numeric", month: "numeric" })} v{" "}
-              {formatTime(slot, business.timezone)} · {formatPrice(service.price_czk)}
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl bg-sand-100 px-4 py-3 text-sm">
+              <span>
+                <span className="font-semibold">{service.name}</span> ·{" "}
+                <span className="first-letter:uppercase">
+                  {formatInTimeZone(slot, business.timezone, { weekday: "short", day: "numeric", month: "numeric" })}
+                </span>{" "}
+                v {formatTime(slot, business.timezone)}
+              </span>
+              <span className="font-semibold tabular-nums">{formatPrice(service.price_czk)}</span>
             </div>
           )}
 
           <SubmitButton className="btn-primary w-full py-3 text-base" pendingText="Odesílám…" disabled={!slot}>
             Závazně rezervovat
           </SubmitButton>
+          <p className="text-center text-xs text-stone-400">Vaše údaje použijeme jen pro vyřízení této rezervace.</p>
         </form>
       </section>
     </div>
   );
 }
 
-function StepTitle({ n, children }: { n: number; children: React.ReactNode }) {
+function StepTitle({ id, n, done, children }: { id: string; n: number; done: boolean; children: React.ReactNode }) {
   return (
-    <h2 className="flex items-center gap-3 text-lg font-semibold">
-      <span className="grid size-7 place-items-center rounded-full bg-brand-100 text-sm font-bold text-brand-800">{n}</span>
+    <h2 id={id} className="flex items-center gap-3 text-lg font-semibold">
+      <span
+        className={`grid size-7 place-items-center rounded-full text-sm font-bold transition-colors ${
+          done ? "bg-brand-700 text-white" : "bg-brand-100 text-brand-800"
+        }`}
+        aria-hidden
+      >
+        {done ? "✓" : n}
+      </span>
       {children}
+      {done && <span className="sr-only">(hotovo)</span>}
     </h2>
   );
 }

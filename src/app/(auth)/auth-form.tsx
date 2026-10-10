@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import type { AuthState } from "./actions";
 import { SubmitButton } from "@/components/submit-button";
+import { PasswordInput } from "@/components/password-input";
 
 type Props = {
   mode: "login" | "register";
@@ -44,14 +45,12 @@ export function AuthForm({ mode, action, next }: Props) {
         <label htmlFor="password" className="label">
           Heslo
         </label>
-        <input
+        <PasswordInput
           id="password"
           name="password"
-          type="password"
           autoComplete={isLogin ? "current-password" : "new-password"}
           minLength={isLogin ? undefined : 8}
           required
-          className="input"
         />
         {!isLogin && <p className="mt-1 text-xs text-stone-500">Alespoň 8 znaků.</p>}
       </div>

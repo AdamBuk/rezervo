@@ -25,6 +25,25 @@ body {
   @apply bg-sand-50 text-stone-900 antialiased;
 }
 
+/* Motion: short, ease-out entrances; disabled via motion-reduce:animate-none where used */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes drawer-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+@keyframes rise-in {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+}
+
 /* Shared form controls (defined as utilities so they compose with @apply) */
 @utility input {
   @apply block w-full rounded-lg border border-stone-300 bg-white px-3 py-2 text-sm text-stone-900 shadow-xs placeholder:text-stone-400 focus:border-brand-500 focus:ring-2 focus:ring-brand-500/20 focus:outline-none disabled:bg-stone-100;

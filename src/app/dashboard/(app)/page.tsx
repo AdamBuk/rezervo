@@ -6,10 +6,14 @@ import {
   addDays,
   formatDateLong,
   isValidDateString,
+  formatInTimeZone,
+  formatTime,
   startOfWeek,
   todayInTimeZone,
+  toZoned,
   zonedTimeToUtc,
 } from "@/lib/time";
+import { formatPrice } from "@/lib/format";
 import { CalendarGrid, type CalendarBooking } from "./calendar/calendar-grid";
 import { BookingPanel } from "./calendar/booking-panel";
 
@@ -30,16 +34,26 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
   const bookingId = typeof params.booking === "string" ? params.booking : null;
 
   const supabase = await createClient();
-  const [{ data: bookings }, { data: hours }] = await Promise.all([
+  const nowIso = new Date().toISOString();
+  const [{ data: bookings }, { data: hours }, { data: upcoming }] = await Promise.all([
     supabase
       .from("bookings")
-      .select("id, starts_at, ends_at, customer_name, customer_phone, services(name)")
+      .select("id, starts_at, ends_at, customer_name, customer_phone, services(name, price_czk)")
       .eq("business_id", business.id)
       .eq("status", "confirmed")
       .gte("starts_at", zonedTimeToUtc(rangeStart, 0, business.timezone).toISOString())
       .lt("starts_at", zonedTimeToUtc(addDays(rangeStart, dayCount), 0, business.timezone).toISOString())
       .order("starts_at"),
     supabase.from("opening_hours").select("weekday, opens_at, closes_at").eq("business_id", business.id),
+    supabase
+      .from("bookings")
+      .select("id, starts_at, customer_name, services(name)")
+      .eq("business_id", business.id)
+      .eq("status", "confirmed")
+      .gt("ends_at", nowIso)
+      .order("starts_at")
+      .limit(1)
+      .maybeSingle(),
   ]);
 
   const href = (overrides: Record<string, string | null>) => {
@@ -65,8 +79,43 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
     serviceName: b.services?.name ?? "",
   }));
 
+  const revenue = (bookings ?? []).reduce((sum, b) => sum + (b.services?.price_czk ?? 0), 0);
+  const now = toZoned(new Date(), business.timezone);
+  const periodLabel = view === "week" ? "tento týden" : "tento den";
+  const upcomingHref = upcoming
+    ? `/dashboard?${new URLSearchParams({ view: "day", date: toZoned(new Date(upcoming.starts_at), business.timezone).date, booking: upcoming.id })}`
+    : null;
+
   return (
     <div className="space-y-4">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className="rounded-2xl border border-stone-200 bg-white px-4 py-3 sm:px-5 sm:py-4">
+          <dt className="text-sm text-stone-500">Rezervace · {periodLabel}</dt>
+          <dd className="mt-1 text-xl font-bold tabular-nums sm:text-2xl">{calendarBookings.length}</dd>
+        </div>
+        <div className="rounded-2xl border border-stone-200 bg-white px-4 py-3 sm:px-5 sm:py-4">
+          <dt className="text-sm text-stone-500">Očekávaná tržba · {periodLabel}</dt>
+          <dd className="mt-1 text-xl font-bold tabular-nums sm:text-2xl">{formatPrice(revenue)}</dd>
+        </div>
+        <div className="col-span-2 rounded-2xl border border-stone-200 bg-white px-4 py-3 sm:col-span-1 sm:px-5 sm:py-4">
+          <dt className="text-sm text-stone-500">Nejbližší zákazník</dt>
+          <dd className="mt-1 min-w-0">
+            {upcoming && upcomingHref ? (
+              <Link href={upcomingHref} className="group block min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-brand-600">
+                <span className="block truncate font-semibold group-hover:text-brand-700">{upcoming.customer_name}</span>
+                <span className="block truncate text-sm text-stone-500 first-letter:uppercase">
+                  {formatInTimeZone(upcoming.starts_at, business.timezone, { weekday: "short", day: "numeric", month: "numeric" })}{" "}
+                  v {formatTime(upcoming.starts_at, business.timezone)}
+                  {upcoming.services?.name ? ` · ${upcoming.services.name}` : ""}
+                </span>
+              </Link>
+            ) : (
+              <span className="text-sm text-stone-500">Žádné nadcházející rezervace</span>
+            )}
+          </dd>
+        </div>
+      </dl>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Link href={href({ date: addDays(requested, -step), booking: null })} className="btn-secondary px-2.5" aria-label="Předchozí">
@@ -94,11 +143,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
         </div>
       </div>
 
-      <p className="text-sm text-stone-500">
-        {calendarBookings.length === 0
-          ? "V tomto období nemáte žádné rezervace."
-          : `${calendarBookings.length} ${pluralBookings(calendarBookings.length)} v tomto období.`}
-      </p>
+      {calendarBookings.length === 0 && <p className="text-sm text-stone-500">V tomto období nemáte žádné rezervace.</p>}
 
       <CalendarGrid
         days={days}
@@ -106,6 +151,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
         timeZone={business.timezone}
         bookings={calendarBookings}
         hours={hours ?? []}
+        now={now}
         bookingHref={(id) => href({ booking: id })}
         dayHref={(date) => `/dashboard?${new URLSearchParams({ view: "day", date })}`}
         selectedId={bookingId}
@@ -119,8 +165,4 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
 function formatShort(date: string) {
   const [, m, d] = date.split("-").map(Number);
   return `${d}. ${m}.`;
-}
-
-function pluralBookings(n: number) {
-  return n <= 4 ? "rezervace" : "rezervací";
 }

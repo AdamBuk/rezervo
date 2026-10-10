@@ -84,8 +84,8 @@ export function validateCreateBooking(body: unknown): Validated<CreateBookingInp
   const phone = typeof customer?.phone === "string" ? customer.phone.trim() : "";
 
   if (customer) {
-    if (name.length < 2 || name.length > 100) {
-      errors.push({ field: "customer.name", message: "Required, 2–100 characters." });
+    if (name.length < 2 || name.length > 100 || /[\u0000-\u001f\u007f]/.test(name)) {
+      errors.push({ field: "customer.name", message: "Required, 2–100 characters, no control characters." });
     }
     if (email.length > 254 || !isEmail(email)) {
       errors.push({ field: "customer.email", message: "Required, must be a valid e-mail address." });

@@ -21,7 +21,9 @@ Rezervační systém pro kadeřnictví, fyzioterapie, masáže a podobné malé 
 - **Veřejná rezervační stránka** `/[slug]` – výběr služby → dne → volného času → kontaktní údaje.
 - **Žádné dvojité rezervace** – hlídá to přímo PostgreSQL (`EXCLUDE` constraint nad časovým rozsahem), takže to platí i pro dva zákazníky, kteří kliknou ve stejnou chvíli.
 - **E-maily** – potvrzení zákazníkovi, upozornění majiteli, připomínka den předem (Vercel Cron), oznámení o zrušení/přesunu.
-- **Administrace** – kalendář den/týden, detail rezervace, zrušení a přesun termínu.
+- **Administrace** – kalendář den/týden se souhrnem (počet rezervací, očekávaná tržba, nejbližší zákazník) a čarou aktuálního času, detail rezervace, zrušení a přesun termínu.
+- **Pohodlí pro zákazníka** – automatický skok na nejbližší volný den, po rezervaci přidání do Google/Apple/Outlook kalendáře (.ics).
+- **Ochrana proti spamu** – honeypot a limit 5 rezervací za 10 minut z jedné IP adresy (sdílený Postgres rate limiter).
 - **Veřejné REST API** pro externí aplikace (např. AI asistenta) – služby, volné termíny, vytvoření a zrušení rezervace; API klíč si majitel spravuje v administraci. Viz [Veřejné REST API](#veřejné-rest-api).
 
 ## Architektura a zajímavá místa
@@ -273,4 +275,3 @@ Vrací `200` a rezervaci se `"status": "cancelled"`; zákazník dostane e-mail o
 - Jeden „zdroj“ na podnik (jedno křeslo/jeden terapeut) – rezervace se nesmí překrývat v rámci celého podniku. Rozšíření: zaměstnanci a jejich vlastní kalendáře.
 - Jeden časový interval otevírací doby na den (bez polední pauzy) a bez svátků/dovolených.
 - Zákazník nemůže rezervaci zrušit sám odkazem z e-mailu (zatím jen majitel).
-- Bez rate-limitingu rezervačního formuláře (jen honeypot).

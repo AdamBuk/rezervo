@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeAvailableSlots } from "./slots";
+import { computeAvailableSlots, findNextAvailableDate } from "./slots";
 import { addDays, isoWeekday, startOfWeek, toZoned, zonedTimeToUtc } from "./time";
 
 const TZ = "Europe/Prague";
@@ -74,5 +74,31 @@ describe("computeAvailableSlots", () => {
       stepMinutes: 15,
     });
     expect(slots.map(hhmm)).toEqual(["08:45", "09:00", "09:15", "09:30"]);
+  });
+});
+
+describe("findNextAvailableDate", () => {
+  const weekdaysOnly = (date: string) => (isoWeekday(date) <= 5 ? { opens_at: "09:00:00", closes_at: "10:00:00" } : null);
+  const input = {
+    timeZone: TZ,
+    durationMinutes: 60,
+    stepMinutes: 15,
+    busy: [] as { start: Date; end: Date }[],
+    now: new Date("2026-10-01T00:00:00Z"),
+    openingFor: weekdaysOnly,
+  };
+
+  it("skips closed days", () => {
+    // 2026-10-17 is a Saturday
+    expect(findNextAvailableDate({ ...input, from: "2026-10-17", to: "2026-10-31" })).toBe("2026-10-19");
+  });
+
+  it("skips fully booked days", () => {
+    const busy = [{ start: zonedTimeToUtc("2026-10-19", 9 * 60, TZ), end: zonedTimeToUtc("2026-10-19", 10 * 60, TZ) }];
+    expect(findNextAvailableDate({ ...input, busy, from: "2026-10-19", to: "2026-10-31" })).toBe("2026-10-20");
+  });
+
+  it("returns null when nothing is free in the range", () => {
+    expect(findNextAvailableDate({ ...input, from: "2026-10-17", to: "2026-10-18" })).toBeNull();
   });
 });

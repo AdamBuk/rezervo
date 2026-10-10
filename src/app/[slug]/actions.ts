@@ -6,11 +6,16 @@ import { createPublicClient } from "@/lib/supabase/public";
 import { isEmail } from "@/lib/format";
 import { getSiteUrl } from "@/lib/site-url";
 import { notifyBookingCreated } from "@/lib/notifications";
+import { createSupabaseRateLimiter, getClientIp } from "@/lib/rate-limit";
+
+/** Per visitor IP: generous for real customers, stops scripted spam. */
+const BOOKING_LIMIT = { limit: 5, windowSeconds: 600 } as const;
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 
 export type BookingState =
   | { status: "idle" }
   | { status: "error"; error: string; slotTaken?: boolean }
-  | { status: "success"; bookingId: string; serviceName: string; startsAt: string; email: string };
+  | { status: "success"; bookingId: string; serviceName: string; durationMinutes: number; startsAt: string; email: string };
 
 const DB_ERRORS: Record<string, string> = {
   slot_taken: "Tento termín si mezitím zarezervoval někdo jiný. Vyberte prosím jiný čas.",
@@ -33,10 +38,21 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const phone = String(formData.get("phone") ?? "").trim();
 
-  if (name.length < 2 || name.length > 100) return { status: "error", error: "Vyplňte prosím jméno a příjmení." };
+  if (name.length < 2 || name.length > 100 || CONTROL_CHARS.test(name)) {
+    return { status: "error", error: "Vyplňte prosím jméno a příjmení." };
+  }
   if (!isEmail(email)) return { status: "error", error: "Zadejte platný e-mail." };
   if (!/^\+?[\d\s()-]{6,30}$/.test(phone)) return { status: "error", error: "Zadejte platné telefonní číslo." };
   if (Number.isNaN(Date.parse(startsAt))) return { status: "error", error: "Vyberte termín." };
+
+  const limit = await createSupabaseRateLimiter().hit(
+    `booking:ip:${await getClientIp()}`,
+    BOOKING_LIMIT.limit,
+    BOOKING_LIMIT.windowSeconds,
+  );
+  if (!limit.allowed) {
+    return { status: "error", error: "Odeslali jste příliš mnoho rezervací. Zkuste to prosím za pár minut znovu." };
+  }
 
   const data = await getPublicBusiness(slug);
   const service = data?.services.find((s) => s.id === serviceId);
@@ -64,5 +80,5 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
   const siteUrl = await getSiteUrl();
   after(() => notifyBookingCreated(bookingId, siteUrl));
 
-  return { status: "success", bookingId, serviceName: service.name, startsAt, email };
+  return { status: "success", bookingId, serviceName: service.name, durationMinutes: service.duration_minutes, startsAt, email };
 }

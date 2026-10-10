@@ -1,4 +1,4 @@
-import { timeToMinutes, zonedTimeToUtc } from "./time";
+import { addDays, timeToMinutes, zonedTimeToUtc } from "./time";
 
 export type Interval = { start: Date; end: Date };
 
@@ -43,4 +43,21 @@ export function computeAvailableSlots(input: SlotInput): Date[] {
     slots.push(start);
   }
   return slots;
+}
+
+export type NextAvailableInput = Omit<SlotInput, "date" | "opening"> & {
+  /** First and last calendar day to check, inclusive ("YYYY-MM-DD") */
+  from: string;
+  to: string;
+  openingFor: (date: string) => SlotInput["opening"];
+};
+
+/** The first day in [from, to] with at least one free slot, or null. */
+export function findNextAvailableDate(input: NextAvailableInput): string | null {
+  const { from, to, openingFor, ...rest } = input;
+  for (let date = from; date <= to; date = addDays(date, 1)) {
+    const opening = openingFor(date);
+    if (opening && computeAvailableSlots({ ...rest, date, opening }).length > 0) return date;
+  }
+  return null;
 }

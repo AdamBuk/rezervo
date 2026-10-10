@@ -62,6 +62,12 @@ describe("validateCreateBooking", () => {
     if (!r.ok) expect(r.errors.map((e) => e.field)).toEqual(["customer.name", "customer.email", "customer.phone"]);
   });
 
+  it("rejects control characters in the name", () => {
+    const r = validateCreateBooking({ ...valid, customer: { ...valid.customer, name: "Jana\r\nBcc: x@y.cz" } });
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errors.map((e) => e.field)).toEqual(["customer.name"]);
+  });
+
   it("requires service, start and customer", () => {
     const r = validateCreateBooking({});
     expect(r.ok).toBe(false);

@@ -4,6 +4,7 @@ import { formatDuration, formatPrice } from "@/lib/format";
 import { formatInTimeZone, formatTime, minutesToTime, toZoned } from "@/lib/time";
 import type { Business } from "@/lib/database.types";
 import { BookingActions } from "./booking-actions";
+import { DrawerShell } from "./drawer-shell";
 
 type Props = { bookingId: string; business: Business; closeHref: string };
 
@@ -24,13 +25,8 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
-      <Link href={closeHref} scroll={false} aria-label="Zavřít detail" className="absolute inset-0 bg-stone-900/30" />
-      <aside
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="booking-title"
-        className="relative flex h-full w-full max-w-md flex-col overflow-y-auto bg-white shadow-2xl"
-      >
+      <Link href={closeHref} scroll={false} aria-label="Zavřít detail" className="absolute inset-0 animate-[fade-in_200ms_ease-out] bg-stone-900/30 motion-reduce:animate-none" />
+      <DrawerShell closeHref={closeHref} labelledBy="booking-title">
         <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
           <h2 id="booking-title" className="font-semibold">
             Detail rezervace
@@ -100,7 +96,7 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
             )}
           </div>
         )}
-      </aside>
+      </DrawerShell>
     </div>
   );
 }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getPublicBusiness } from "@/lib/availability";
-import { todayInTimeZone } from "@/lib/time";
+import { isoWeekday, todayInTimeZone } from "@/lib/time";
 import { trimSeconds } from "@/lib/format";
 import { WEEKDAYS } from "@/lib/constants";
 import { BookingWidget } from "./booking-widget";
@@ -23,6 +23,8 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
   if (!data) notFound();
 
   const { business, services, hours } = data;
+  const today = todayInTimeZone(business.timezone);
+  const todayWeekday = isoWeekday(today);
 
   return (
     <div className="flex flex-1 flex-col">
@@ -42,22 +44,30 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
         </div>
       </header>
 
-      <main className="mx-auto grid w-full max-w-5xl flex-1 gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[1fr_16rem]">
+      <main className="mx-auto grid w-full max-w-5xl flex-1 items-start gap-6 px-4 py-8 sm:px-6 lg:grid-cols-[1fr_16rem]">
         <BookingWidget
           business={business}
           services={services}
           openWeekdays={hours.map((h) => h.weekday)}
-          today={todayInTimeZone(business.timezone)}
+          today={today}
         />
 
         <aside className="h-fit rounded-2xl border border-stone-200 bg-white p-5 text-sm lg:sticky lg:top-6">
           <h2 className="font-semibold">Otevírací doba</h2>
-          <dl className="mt-3 space-y-1.5">
+          <dl className="mt-3 space-y-1">
             {WEEKDAYS.map((day) => {
               const h = hours.find((x) => x.weekday === day.iso);
+              const isToday = day.iso === todayWeekday;
               return (
-                <div key={day.iso} className="flex justify-between gap-4">
-                  <dt className="text-stone-500">{day.label}</dt>
+                <div
+                  key={day.iso}
+                  className={`-mx-2 flex justify-between gap-4 rounded-md px-2 py-0.5 ${isToday ? "bg-brand-50 font-medium text-brand-900" : ""}`}
+                  aria-current={isToday ? "date" : undefined}
+                >
+                  <dt className={isToday ? "" : "text-stone-500"}>
+                    {day.label}
+                    {isToday && <span className="ml-1.5 text-xs font-semibold text-brand-700">dnes</span>}
+                  </dt>
                   <dd className="tabular-nums">
                     {h ? `${trimSeconds(h.opens_at)} – ${trimSeconds(h.closes_at)}` : <span className="text-stone-400">zavřeno</span>}
                   </dd>

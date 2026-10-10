@@ -3,14 +3,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/site-url";
+import { safeRedirectPath } from "@/lib/safe-redirect";
 
 export type AuthState = { error?: string; message?: string; email?: string } | undefined;
-
-function safeNext(next: FormDataEntryValue | null): string {
-  const value = typeof next === "string" ? next : "";
-  // Only allow local paths to prevent open redirects.
-  return value.startsWith("/") && !value.startsWith("//") ? value : "/dashboard";
-}
 
 export async function login(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim();
@@ -28,7 +23,7 @@ export async function login(_prev: AuthState, formData: FormData): Promise<AuthS
     return { error: "Nesprávný e-mail nebo heslo.", email };
   }
 
-  redirect(safeNext(formData.get("next")));
+  redirect(safeRedirectPath(formData.get("next")));
 }
 
 export async function register(_prev: AuthState, formData: FormData): Promise<AuthState> {

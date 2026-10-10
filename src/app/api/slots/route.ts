@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getAvailableSlots } from "@/lib/availability";
+import { getAvailability } from "@/lib/availability";
 
 // GET /api/slots?slug=u-nuzek&service=<uuid>&date=2026-10-14
 export async function GET(request: NextRequest) {
@@ -8,8 +8,12 @@ export async function GET(request: NextRequest) {
   const serviceId = params.get("service") ?? "";
   const date = params.get("date") ?? "";
 
-  const slots = await getAvailableSlots(slug, serviceId, date);
-  if (!slots) return NextResponse.json({ error: "not_found" }, { status: 404 });
-
-  return NextResponse.json({ slots }, { headers: { "Cache-Control": "no-store" } });
+  try {
+    const availability = await getAvailability(slug, serviceId, date);
+    if (!availability) return NextResponse.json({ error: "not_found" }, { status: 404 });
+    return NextResponse.json(availability, { headers: { "Cache-Control": "no-store" } });
+  } catch (err) {
+    console.error("[slots] failed", err);
+    return NextResponse.json({ error: "failed" }, { status: 500 });
+  }
 }

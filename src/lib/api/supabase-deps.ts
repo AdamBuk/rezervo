@@ -4,7 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getSiteUrl } from "@/lib/site-url";
 import { notifyBookingCancelled, notifyBookingCreated } from "@/lib/notifications";
 import { apiError } from "./responses";
-import { createApiHandlers, type ApiDeps, type ApiHandlers, type ApiStore, type RateLimiter } from "./handlers";
+import { createSupabaseRateLimiter } from "@/lib/rate-limit";
+import { createApiHandlers, type ApiDeps, type ApiHandlers, type ApiStore } from "./handlers";
 
 // The API authenticates with its own keys, not Supabase sessions, so it uses the
 // secret-key client. Every query below is scoped by the business_id resolved
@@ -129,23 +130,6 @@ function createSupabaseStore(): ApiStore {
         .maybeSingle();
       if (error) throw error;
       return data !== null;
-    },
-  };
-}
-
-function createSupabaseRateLimiter(): RateLimiter {
-  const admin = lazyAdminClient();
-  return {
-    async hit(bucket, limit, windowSeconds) {
-      const { data, error } = await admin()
-        .rpc("api_rate_limit_hit", { p_bucket: bucket, p_limit: limit, p_window_seconds: windowSeconds })
-        .single();
-      if (error || !data) {
-        // Fail open: an unavailable limiter must not take the whole API down.
-        console.error("[api] Rate limiter unavailable", error);
-        return { allowed: true, limit, remaining: limit, resetAt: new Date(Date.now() + windowSeconds * 1000) };
-      }
-      return { allowed: data.allowed, limit, remaining: data.remaining, resetAt: new Date(data.reset_at) };
     },
   };
 }
