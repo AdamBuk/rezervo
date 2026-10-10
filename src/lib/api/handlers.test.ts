@@ -37,6 +37,7 @@ type Fixture = {
   notified: { created: string[]; cancelled: string[] };
   limiter: { hits: Map<string, number>; denyBucket: string | null };
   storeError: Error | null;
+  closures: string[];
 };
 
 function setup() {
@@ -53,6 +54,7 @@ function setup() {
     notified: { created: [], cancelled: [] },
     limiter: { hits: new Map(), denyBucket: null },
     storeError: null,
+    closures: [],
   };
 
   const keys = new Map([
@@ -80,6 +82,9 @@ function setup() {
     async getOpeningHours(_businessId, weekday) {
       // Monday–Friday 09:00–17:00
       return weekday <= 5 ? { opens_at: "09:00:00", closes_at: "17:00:00" } : null;
+    },
+    async isClosedOn(businessId, date) {
+      return businessId === BIZ.id && f.closures.includes(date);
     },
     async getBusyIntervals(businessId, from, to) {
       return [...f.bookings.values()]
@@ -323,6 +328,15 @@ describe("GET /slots", () => {
   it("marks closed days", async () => {
     const { data } = await json(await slots(`service_id=${SERVICE.id}&date=2026-10-17`));
     expect(data!.closed).toBe(true);
+    expect(data!.closed_reason).toBe("regular");
+    expect(data!.slots).toEqual([]);
+  });
+
+  it("marks holidays as closed", async () => {
+    ctx.f.closures.push("2026-10-13");
+    const { data } = await json(await slots(`service_id=${SERVICE.id}&date=2026-10-13`));
+    expect(data!.closed).toBe(true);
+    expect(data!.closed_reason).toBe("holiday");
     expect(data!.slots).toEqual([]);
   });
 
@@ -443,6 +457,7 @@ describe("POST /bookings", () => {
       ["outside_opening_hours", 422, "outside_opening_hours"],
       ["slot_misaligned", 422, "slot_misaligned"],
       ["slot_too_far", 422, "date_out_of_range"],
+      ["business_closed", 422, "business_closed"],
       ["service_not_found", 404, "service_not_found"],
     ];
     for (const [dbCode, status, code] of cases) {
@@ -458,6 +473,39 @@ describe("POST /bookings", () => {
     const res = await create(validBooking);
     expect(res.status).toBe(500);
     expect((await json(res)).error?.code).toBe("internal_error");
+  });
+});
+
+describe("GET /bookings/{id}", () => {
+  const get = (id: string, key = ctx.f.key) => ctx.api.getBooking(req(`/bookings/${id}`, { key }), id);
+
+  it("returns the booking", async () => {
+    seedBooking(ctx.f, BOOKING_ID, BIZ.id, "2026-10-13T10:00:00+02:00");
+    const res = await get(BOOKING_ID);
+    expect(res.status).toBe(200);
+    expect((await json(res)).data).toMatchObject({
+      id: BOOKING_ID,
+      status: "confirmed",
+      local_date: "2026-10-13",
+      local_time: "10:00",
+      customer: { name: "Petr Svoboda" },
+    });
+  });
+
+  it("matches the Location header of a created booking", async () => {
+    const created = await ctx.api.createBooking(req("/bookings", { method: "POST", key: ctx.f.key, body: validBooking }));
+    const location = created.headers.get("location")!;
+    const id = location.split("/").pop()!;
+    const res = await get(id);
+    expect(res.status).toBe(200);
+    expect((await json(res)).data).toMatchObject({ id, status: "confirmed" });
+  });
+
+  it("hides bookings of other businesses and validates the id", async () => {
+    seedBooking(ctx.f, OTHER_BOOKING_ID, OTHER_BIZ.id, "2026-10-13T10:00:00+02:00");
+    expect((await get(OTHER_BOOKING_ID)).status).toBe(404);
+    expect((await get("nope")).status).toBe(400);
+    expect((await get(BOOKING_ID, "")).status).toBe(401);
   });
 });
 

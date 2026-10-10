@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSiteUrl } from "@/lib/site-url";
 import { isEmail } from "@/lib/format";
-import { createSupabaseRateLimiter, getClientIp } from "@/lib/rate-limit";
+import { isRateLimitedByIp } from "@/lib/rate-limit";
 
 export type PasswordState = { error?: string; message?: string; email?: string } | undefined;
 
@@ -14,12 +14,9 @@ export async function requestPasswordReset(_prev: PasswordState, formData: FormD
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!isEmail(email)) return { error: "Zadejte platný e-mail.", email };
 
-  const limit = await createSupabaseRateLimiter().hit(
-    `password-reset:ip:${await getClientIp()}`,
-    RESET_LIMIT.limit,
-    RESET_LIMIT.windowSeconds,
-  );
-  if (!limit.allowed) return { error: "Příliš mnoho žádostí. Zkuste to prosím za pár minut.", email };
+  if (await isRateLimitedByIp("password-reset", RESET_LIMIT.limit, RESET_LIMIT.windowSeconds)) {
+    return { error: "Příliš mnoho žádostí. Zkuste to prosím za pár minut.", email };
+  }
 
   const supabase = await createClient();
   const { error } = await supabase.auth.resetPasswordForEmail(email, {

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { verifyBookingManageToken } from "@/lib/booking-link";
+import { getBookingLinkSecret, verifyBookingManageToken } from "@/lib/booking-link";
+import { isUuid } from "@/lib/validation";
 import { CUSTOMER_CANCEL_NOTICE_HOURS } from "@/lib/constants";
 import { formatDuration, formatPrice } from "@/lib/format";
 import { formatInTimeZone, formatTime } from "@/lib/time";
@@ -15,12 +16,10 @@ export const metadata: Metadata = {
   referrer: "no-referrer",
 };
 
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
 export default async function ManageBookingPage({ params }: PageProps<"/rezervace/[id]/[token]">) {
   const { id: rawId, token } = await params;
   const id = rawId.toLowerCase();
-  if (!UUID.test(id) || !verifyBookingManageToken(id, token, process.env.API_KEY_ENCRYPTION_SECRET)) notFound();
+  if (!isUuid(id) || !verifyBookingManageToken(id, token, getBookingLinkSecret())) notFound();
 
   const { data: booking, error } = await createAdminClient()
     .from("bookings")

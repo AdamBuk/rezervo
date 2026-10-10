@@ -1,19 +1,15 @@
 import { isEmail } from "@/lib/format";
 import { isValidDateString } from "@/lib/time";
+import { isUuid, isValidCustomerName, isValidPhone } from "@/lib/validation";
+
+export { isUuid };
 
 export type FieldError = { field: string; message: string };
 
 export type Validated<T> = { ok: true; value: T } | { ok: false; errors: FieldError[] };
 
-const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 // An explicit offset is required: "2026-10-14T10:00" would be ambiguous.
 const ISO_DATETIME_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,9})?)?(Z|[+-]\d{2}:\d{2})$/i;
-// Same rule as the public booking form.
-const PHONE_PATTERN = /^\+?[\d\s()-]{6,30}$/;
-
-export function isUuid(value: unknown): value is string {
-  return typeof value === "string" && UUID_PATTERN.test(value);
-}
 
 /** Parses an ISO 8601 timestamp with an offset; returns null when invalid. */
 export function parseIsoDateTime(value: unknown): Date | null {
@@ -84,13 +80,13 @@ export function validateCreateBooking(body: unknown): Validated<CreateBookingInp
   const phone = typeof customer?.phone === "string" ? customer.phone.trim() : "";
 
   if (customer) {
-    if (name.length < 2 || name.length > 100 || /[\u0000-\u001f\u007f]/.test(name)) {
+    if (!isValidCustomerName(name)) {
       errors.push({ field: "customer.name", message: "Required, 2–100 characters, no control characters." });
     }
     if (email.length > 254 || !isEmail(email)) {
       errors.push({ field: "customer.email", message: "Required, must be a valid e-mail address." });
     }
-    if (!PHONE_PATTERN.test(phone)) {
+    if (!isValidPhone(phone)) {
       errors.push({ field: "customer.phone", message: "Required, 6–30 digits, spaces, (), - and an optional leading +." });
     }
   }

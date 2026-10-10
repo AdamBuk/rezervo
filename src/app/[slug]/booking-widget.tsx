@@ -6,6 +6,7 @@ import { formatDuration, formatPrice } from "@/lib/format";
 import { addDays, formatDateLong, formatInTimeZone, formatTime, isoWeekday } from "@/lib/time";
 import { BOOKING_HORIZON_DAYS, WEEKDAYS } from "@/lib/constants";
 import type { PublicBusiness } from "@/lib/availability";
+import { isClosedOn, type DateRange } from "@/lib/slots";
 import { createBooking, type BookingState } from "./actions";
 import { AddToCalendar } from "./add-to-calendar";
 
@@ -13,6 +14,8 @@ type Props = {
   business: PublicBusiness["business"];
   services: PublicBusiness["services"];
   openWeekdays: number[];
+  /** Upcoming closures (holidays), inclusive day ranges */
+  closures: DateRange[];
   /** Today in the business timezone, computed on the server to avoid hydration drift */
   today: string;
 };
@@ -23,6 +26,11 @@ const DAYS_PER_PAGE = 7;
 
 function daysBetween(from: string, to: string): number {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
+}
+
+/** First day of the 7-day page (counted from today) that contains `date`. */
+function pageStartFor(today: string, date: string): string {
+  return addDays(today, Math.floor(daysBetween(today, date) / DAYS_PER_PAGE) * DAYS_PER_PAGE);
 }
 
 /** Brings a step into view when it starts below the fold (mostly on phones). */
@@ -38,17 +46,18 @@ export function BookingWidget(props: Props) {
   return <BookingFlow key={round} {...props} onRestart={() => setRound((r) => r + 1)} />;
 }
 
-function BookingFlow({ business, services, openWeekdays, today, onRestart }: Props & { onRestart: () => void }) {
+function BookingFlow({ business, services, openWeekdays, closures, today, onRestart }: Props & { onRestart: () => void }) {
   const [serviceId, setServiceId] = useState<string | null>(services.length === 1 ? services[0].id : null);
   const firstOpenDay = useMemo(() => {
     for (let i = 0; i <= BOOKING_HORIZON_DAYS; i++) {
       const d = addDays(today, i);
-      if (openWeekdays.includes(isoWeekday(d))) return d;
+      if (openWeekdays.includes(isoWeekday(d)) && !isClosedOn(d, closures)) return d;
     }
     return today;
-  }, [today, openWeekdays]);
+  }, [today, openWeekdays, closures]);
   const [date, setDate] = useState(firstOpenDay);
-  const [dateTouched, setDateTouched] = useState(false);
+  // Whether the customer picked a day themselves; read in the fetch callback, so a ref (no refetch on change).
+  const dateTouchedRef = useRef(false);
   const [pageStart, setPageStart] = useState(today);
   const [reloadKey, setReloadKey] = useState(0);
   // Results are tagged with the request key, so stale responses are ignored and
@@ -72,11 +81,10 @@ function BookingFlow({ business, services, openWeekdays, today, onRestart }: Pro
   const slot = selection && selection.key === requestKey ? selection.slot : null;
   const lastBookableDay = addDays(today, BOOKING_HORIZON_DAYS);
 
-  const pageFor = (d: string) => addDays(today, Math.floor(daysBetween(today, d) / DAYS_PER_PAGE) * DAYS_PER_PAGE);
-  const goToDate = (d: string, touched: boolean) => {
+  const goToDate = (d: string) => {
+    dateTouchedRef.current = true;
     setDate(d);
-    setPageStart(pageFor(d));
-    if (touched) setDateTouched(true);
+    setPageStart(pageStartFor(today, d));
   };
 
   useEffect(() => {
@@ -87,9 +95,9 @@ function BookingFlow({ business, services, openWeekdays, today, onRestart }: Pro
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((data: { slots: string[]; nextAvailable: string | null }) => {
         // Until the customer picks a day, skip straight to the nearest day with free times.
-        if (!dateTouched && data.slots.length === 0 && data.nextAvailable) {
+        if (!dateTouchedRef.current && data.slots.length === 0 && data.nextAvailable) {
           setDate(data.nextAvailable);
-          setPageStart(addDays(today, Math.floor(daysBetween(today, data.nextAvailable) / DAYS_PER_PAGE) * DAYS_PER_PAGE));
+          setPageStart(pageStartFor(today, data.nextAvailable));
           return;
         }
         setResult({ key: requestKey, slots: data.slots, nextAvailable: data.nextAvailable });
@@ -98,11 +106,11 @@ function BookingFlow({ business, services, openWeekdays, today, onRestart }: Pro
         if (!controller.signal.aborted) setResult({ key: requestKey, failed: true });
       });
     return () => controller.abort();
-  }, [business.slug, serviceId, date, requestKey, dateTouched, today]);
+  }, [business.slug, serviceId, date, requestKey, today]);
 
   if (state.status === "success") {
     return (
-      <div className="card animate-[rise-in_250ms_ease-out] text-center motion-reduce:animate-none" role="status">
+      <div className="card animate-[rise-in_260ms_var(--ease-out)] text-center motion-reduce:animate-[fade-in_150ms_ease-out]" role="status">
         <div className="mx-auto grid size-14 place-items-center rounded-full bg-brand-100 text-brand-700">
           <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
             <path d="M5 12.5l4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -175,7 +183,7 @@ function BookingFlow({ business, services, openWeekdays, today, onRestart }: Pro
                   setServiceId(s.id);
                   requestAnimationFrame(() => revealStep(step2Ref.current));
                 }}
-                className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-[background-color,border-color,box-shadow] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.99] motion-reduce:active:scale-100 ${
+                className={`flex items-center justify-between gap-4 rounded-xl border px-4 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.99] motion-reduce:active:scale-100 ${
                   selected
                     ? "border-brand-600 bg-brand-50 ring-1 ring-brand-600"
                     : "border-stone-200 hover:border-stone-300 hover:bg-stone-50"
@@ -231,7 +239,8 @@ function BookingFlow({ business, services, openWeekdays, today, onRestart }: Pro
         <div className="mt-4 grid grid-cols-7 gap-1.5">
           {days.map((d) => {
             const weekday = WEEKDAYS[isoWeekday(d) - 1];
-            const closed = !openWeekdays.includes(weekday.iso) || d > lastBookableDay;
+            const holiday = isClosedOn(d, closures);
+            const closed = !openWeekdays.includes(weekday.iso) || holiday || d > lastBookableDay;
             const selected = d === date;
             return (
               <button
@@ -239,9 +248,10 @@ function BookingFlow({ business, services, openWeekdays, today, onRestart }: Pro
                 type="button"
                 disabled={closed}
                 aria-pressed={selected}
-                aria-label={`${formatDateLong(d)}${closed ? " – zavřeno" : ""}`}
-                onClick={() => goToDate(d, true)}
-                className={`rounded-lg border px-1 py-2 text-center text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${
+                aria-label={`${formatDateLong(d)}${holiday ? " – dovolená" : closed ? " – zavřeno" : ""}`}
+                title={holiday ? "Zavřeno (dovolená)" : undefined}
+                onClick={() => goToDate(d)}
+                className={`rounded-lg border px-1 py-2 text-center text-sm transition-[color,background-color,border-color,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 enabled:active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${
                   selected
                     ? "border-brand-700 bg-brand-700 text-white"
                     : closed
@@ -278,7 +288,7 @@ function BookingFlow({ business, services, openWeekdays, today, onRestart }: Pro
               {current.nextAvailable ? (
                 <button
                   type="button"
-                  onClick={() => goToDate(current.nextAvailable!, true)}
+                  onClick={() => goToDate(current.nextAvailable!)}
                   className="mt-2 inline-flex items-center gap-1 font-semibold text-brand-700 hover:underline"
                 >
                   Nejbližší volný termín: <span className="first-letter:uppercase">{formatDateLong(current.nextAvailable)}</span> →
@@ -288,7 +298,7 @@ function BookingFlow({ business, services, openWeekdays, today, onRestart }: Pro
               )}
             </div>
           ) : (
-            <div key={requestKey} className="grid animate-[rise-in_200ms_ease-out] grid-cols-4 gap-2 motion-reduce:animate-none sm:grid-cols-6">
+            <div key={requestKey} className="grid animate-[rise-in_220ms_var(--ease-out)] grid-cols-4 gap-2 motion-reduce:animate-[fade-in_150ms_ease-out] sm:grid-cols-6">
               {current.slots.map((s) => (
                 <button
                   key={s}
@@ -299,7 +309,7 @@ function BookingFlow({ business, services, openWeekdays, today, onRestart }: Pro
                     setSelection({ key: requestKey, slot: s });
                     requestAnimationFrame(() => revealStep(step3Ref.current));
                   }}
-                  className={`rounded-lg border py-2 text-sm font-medium tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${
+                  className={`rounded-lg border py-2 text-sm font-medium tabular-nums transition-[color,background-color,border-color,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${
                     s === slot
                       ? "border-brand-700 bg-brand-700 text-white"
                       : "border-stone-200 hover:border-brand-400 hover:bg-brand-50"

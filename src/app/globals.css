@@ -19,6 +19,10 @@
   --color-sand-50: #faf8f5;
   --color-sand-100: #f3efe8;
   --color-sand-200: #e6dfd3;
+
+  /* Motion: strong custom curves (built-in ease-out is too weak to feel intentional) */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 html {
@@ -100,7 +104,7 @@ button,
   @apply mb-1 block text-sm font-medium text-stone-700;
 }
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-[color,background-color,border-color,transform] duration-150 ease-out select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 motion-reduce:active:scale-100;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-[color,background-color,border-color,transform] duration-150 ease-(--ease-out) select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 motion-reduce:active:scale-100;
 }
 @utility btn-primary {
   @apply btn bg-brand-700 text-white hover:bg-brand-800;

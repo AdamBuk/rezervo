@@ -40,9 +40,18 @@ Rezervační systém pro malé podniky (kadeřnictví, fyzio, masáže).
 Veřejné API pro externí aplikace (připravovaný AI asistent). Dokumentace pro uživatele API je v README (sekce „Veřejné REST API“).
 - **API klíč**: každý podnik má nejvýš jeden aktivní klíč (`rzv_live_…`), spravuje ho v administraci `/dashboard/api` – zobrazení, vygenerování nového (starý se zneplatní), zneplatnění. Ověření hlavičkou `Authorization: Bearer <klíč>`.
 - **Uložení klíče**: tabulka `api_keys` – `key_hash` (SHA-256, slouží k ověření), `key_prefix`, `key_ciphertext` (AES-256-GCM, aby šel klíč v administraci zobrazit; tajemství v env `API_KEY_ENCRYPTION_SECRET`, neměnit). Majitel nevidí `key_hash` a smí měnit jen `revoked_at`; rotace přes RPC `rotate_api_key` (atomicky).
-- **Endpointy** (`src/app/api/v1/`): `GET /services`, `GET /slots?service_id&date`, `POST /bookings`, `POST /bookings/{id}/cancel`; neznámé cesty vrací JSON 404.
+- **Endpointy** (`src/app/api/v1/`): `GET /services`, `GET /slots?service_id&date`, `POST /bookings`, `GET /bookings/{id}`, `POST /bookings/{id}/cancel`; neznámé cesty vrací JSON 404.
 - **Architektura**: logika v `src/lib/api/handlers.ts` bez závislosti na Next/Supabase (DI přes `ApiDeps`), produkční zapojení v `src/lib/api/supabase-deps.ts` (secret key, `after()` pro e-maily). Validace v `src/lib/api/validation.ts`, odpovědi `{ data }` / `{ error: { code, message, details } }`.
 - **Rate limiting**: v Postgresu (`api_rate_limits` + `api_rate_limit_hit`), 120 req/min na klíč, zápisy navíc 20/min. Při výpadku limiteru fail-open.
 - **Pravidla rezervace přes API** = jako na webu: min. 30 min předem (`MIN_NOTICE_MINUTES`), max. 60 dní (`BOOKING_HORIZON_DAYS`), zbytek hlídá `create_booking()`.
 - **Testy**: `src/lib/api/*.test.ts` (všechny endpointy s in-memory store), DB pravidla klíčů a limitů v `supabase/tests/schema.test.mjs`.
 - Při změně API aktualizovat README i tuto sekci.
+
+## Další funkce (hotovo)
+- **Zrušení zákazníkem**: `/rezervace/[id]/[token]` – token = HMAC(id) (`src/lib/booking-link.ts`, secret `BOOKING_LINK_SECRET` → fallback `API_KEY_ENCRYPTION_SECRET`). Odkaz je v potvrzení, připomínce i na obrazovce po rezervaci. Zrušit lze ≥ `CUSTOMER_CANCEL_NOTICE_HOURS` (2 h) předem; majitel dostane e-mail.
+- **Dovolená**: tabulka `closures` (migrace `…_closures.sql`), `create_booking()` hlásí `business_closed`. Respektuje web (`isClosedOn` v `src/lib/slots.ts`), API (`closed_reason`) i přesun v kalendáři. Správa na `/dashboard/hours`.
+- **Zapomenuté heslo**: `/forgot-password` → e-mail → `/auth/callback?next=/reset-password` → `/reset-password`.
+- **Sdílené validace**: `src/lib/validation.ts` (UUID, jméno, telefon) – používat ve formulářích, API i akcích. Bezpečné přesměrování: `safeRedirectPath()`.
+- **Rate limiting**: `isRateLimitedByIp()` (`src/lib/rate-limit.ts`) – bez známé IP se limit přeskočí. Rezervace 8/10 min, zrušení 10/10 min, reset hesla 5/15 min.
+- **UI pravidla**: vstupy 16 px na dotykových zařízeních (`pointer-coarse`), destruktivní akce přes `ConfirmSubmit`, animace s `--ease-out`/`--ease-drawer` a `motion-reduce` fallbackem (fade).
+- Nové top-level routy přidat do `RESERVED_SLUGS` i do `businesses_slug_check` (migrace).

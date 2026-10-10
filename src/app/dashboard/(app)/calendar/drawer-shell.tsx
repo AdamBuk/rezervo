@@ -26,6 +26,9 @@ export function DrawerShell({ closeHref, labelledBy, children }: Props) {
 
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        // Esc in a form field (e.g. closing the native date picker) must not discard what's being edited.
+        const target = e.target as HTMLElement | null;
+        if (e.defaultPrevented || target?.closest("input, select, textarea")) return;
         e.preventDefault();
         router.push(closeHref, { scroll: false });
         return;
@@ -59,7 +62,7 @@ export function DrawerShell({ closeHref, labelledBy, children }: Props) {
       aria-modal="true"
       aria-labelledby={labelledBy}
       tabIndex={-1}
-      className="relative flex h-full w-full max-w-md animate-[drawer-in_200ms_cubic-bezier(0.2,0.8,0.2,1)] flex-col overflow-y-auto overscroll-contain bg-white shadow-2xl outline-none motion-reduce:animate-none"
+      className="relative flex h-full w-full max-w-md animate-[drawer-in_280ms_var(--ease-drawer)] flex-col overflow-y-auto overscroll-contain bg-white shadow-2xl outline-none motion-reduce:animate-[fade-in_150ms_ease-out]"
     >
       {children}
     </aside>

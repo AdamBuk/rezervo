@@ -21,6 +21,8 @@ describe("booking manage links", () => {
     expect(verifyBookingManageToken(ID, (token[0] === "A" ? "B" : "A") + token.slice(1), SECRET)).toBe(false);
     expect(verifyBookingManageToken(ID, token.slice(0, 31), SECRET)).toBe(false);
     expect(verifyBookingManageToken(ID, "", SECRET)).toBe(false);
+    // 32 characters but 33 bytes must not throw
+    expect(verifyBookingManageToken(ID, `${token.slice(0, 31)}é`, SECRET)).toBe(false);
   });
 
   it("is disabled without a proper secret", () => {

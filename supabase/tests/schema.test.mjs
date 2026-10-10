@@ -150,5 +150,29 @@ await expect("rate limit hit 3 denied", async () => { const r = await hit(); if 
 await expect("rate limit rejects bad config", () => db.query("select * from api_rate_limit_hit('x', 0, 60)"), /invalid_rate_limit/);
 await db.exec("reset role");
 
+// --- Closures (holidays) ---------------------------------------------------
+const { rows: [{ day4 }] } = await db.query(`select ((now() at time zone 'Europe/Prague')::date + 4)::text as day4`);
+const at4 = new Date(new Date(d).getTime() + 86400000).toISOString(); // 10:00 local, day + 4
+await db.exec(`set role authenticated; set request.jwt.claim.sub = '${owner}'`);
+await expect("owner adds closure", () => db.query(
+  "insert into closures (business_id, starts_on, ends_on, note) values ($1, $2, $2, 'Dovolená') returning id", [biz.id, day4]).then(r => r.rows.length));
+await expect("closure end before start rejected", () => db.query(
+  "insert into closures (business_id, starts_on, ends_on) values ($1, $2::date, $2::date - 1)", [biz.id, day4]), /check constraint/);
+await db.exec("reset role");
+
+await db.exec(`set role authenticated; set request.jwt.claim.sub = '${other}'`);
+await expect("other user cannot add closure", () => db.query(
+  "insert into closures (business_id, starts_on, ends_on) values ($1, $2, $2)", [biz.id, day4]), /row-level/);
+await db.exec("reset role");
+
+await db.exec("set role anon");
+await expect("anon reads closure dates", () => db.query("select starts_on, ends_on from closures").then(r => {
+  if (r.rows.length !== 1) throw new Error(`expected 1, got ${r.rows.length}`);
+  return r.rows.length;
+}));
+await expect("anon cannot read closure note", () => db.query("select note from closures"), /permission denied/);
+await expect("booking on closed day rejected", () => book(at4), /business_closed/);
+await db.exec("reset role");
+
 console.log(failures ? `\n${failures} FAILURES` : "\nALL PASSED");
 process.exit(failures ? 1 : 0);

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeAvailableSlots, findNextAvailableDate } from "./slots";
+import { computeAvailableSlots, findNextAvailableDate, isClosedOn } from "./slots";
 import { addDays, isoWeekday, startOfWeek, toZoned, zonedTimeToUtc } from "./time";
 
 const TZ = "Europe/Prague";
@@ -100,5 +100,25 @@ describe("findNextAvailableDate", () => {
 
   it("returns null when nothing is free in the range", () => {
     expect(findNextAvailableDate({ ...input, from: "2026-10-17", to: "2026-10-18" })).toBeNull();
+  });
+});
+
+describe("isClosedOn", () => {
+  const closures = [
+    { starts_on: "2026-12-24", ends_on: "2026-12-26" },
+    { starts_on: "2026-12-31", ends_on: "2026-12-31" },
+  ];
+
+  it("matches inclusive ranges", () => {
+    expect(isClosedOn("2026-12-24", closures)).toBe(true);
+    expect(isClosedOn("2026-12-25", closures)).toBe(true);
+    expect(isClosedOn("2026-12-26", closures)).toBe(true);
+    expect(isClosedOn("2026-12-31", closures)).toBe(true);
+  });
+
+  it("leaves other days open", () => {
+    expect(isClosedOn("2026-12-23", closures)).toBe(false);
+    expect(isClosedOn("2026-12-27", closures)).toBe(false);
+    expect(isClosedOn("2026-12-24", [])).toBe(false);
   });
 });

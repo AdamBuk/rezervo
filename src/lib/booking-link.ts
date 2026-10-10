@@ -6,6 +6,15 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 // server secret with a fixed label, keeping it separate from API key encryption.
 
 const LABEL = "booking-manage-link:v1";
+
+/**
+ * BOOKING_LINK_SECRET when set, otherwise API_KEY_ENCRYPTION_SECRET (with a separate
+ * derived key). Changing it invalidates links in e-mails already sent.
+ */
+export function getBookingLinkSecret(): string | undefined {
+  return process.env.BOOKING_LINK_SECRET || process.env.API_KEY_ENCRYPTION_SECRET;
+}
+
 const TOKEN_LENGTH = 32; // base64url chars = 192 bits
 const MIN_SECRET_LENGTH = 32;
 
@@ -25,7 +34,10 @@ export function verifyBookingManageToken(bookingId: string, token: string, secre
   if (typeof token !== "string" || token.length !== TOKEN_LENGTH) return false;
   const expected = bookingManageToken(bookingId, secret);
   if (!expected) return false;
-  return timingSafeEqual(Buffer.from(expected), Buffer.from(token));
+  // Compare bytes, not characters: a multi-byte character would make the lengths differ and throw.
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(token, "utf8");
+  return a.length === b.length && timingSafeEqual(a, b);
 }
 
 /** Absolute manage link, or null when links can't be signed. */

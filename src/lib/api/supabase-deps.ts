@@ -78,6 +78,18 @@ function createSupabaseStore(): ApiStore {
       return data;
     },
 
+    async isClosedOn(businessId, date) {
+      const { data, error } = await admin()
+        .from("closures")
+        .select("id")
+        .eq("business_id", businessId)
+        .lte("starts_on", date)
+        .gte("ends_on", date)
+        .limit(1);
+      if (error) throw error;
+      return (data ?? []).length > 0;
+    },
+
     async getBusyIntervals(businessId, from, to) {
       const { data, error } = await admin().rpc("get_busy_intervals", {
         p_business_id: businessId,

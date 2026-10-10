@@ -222,6 +222,41 @@ export type Database = {
           },
         ];
       };
+      closures: {
+        Row: {
+          id: string;
+          business_id: string;
+          starts_on: string;
+          ends_on: string;
+          note: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          starts_on: string;
+          ends_on: string;
+          note?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          starts_on?: string;
+          ends_on?: string;
+          note?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "closures_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       api_rate_limits: {
         Row: { bucket: string; window_start: string; hits: number };
         Insert: { bucket: string; window_start: string; hits?: number };
@@ -268,3 +303,4 @@ export type Service = Tables<"services">;
 export type OpeningHours = Tables<"opening_hours">;
 export type Booking = Tables<"bookings">;
 export type ApiKey = Tables<"api_keys">;
+export type Closure = Tables<"closures">;

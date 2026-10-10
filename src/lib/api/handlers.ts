@@ -38,6 +38,8 @@ export interface ApiStore {
   /** Active services in display order. */
   listServices(businessId: string): Promise<ApiService[]>;
   getOpeningHours(businessId: string, weekday: number): Promise<{ opens_at: string; closes_at: string } | null>;
+  /** Whether a closure (holiday) covers the calendar day */
+  isClosedOn(businessId: string, date: string): Promise<boolean>;
   getBusyIntervals(businessId: string, from: Date, to: Date): Promise<Interval[]>;
   /** Atomic booking via create_booking(); `code` is its error (slot_taken, …). */
   createBooking(input: {
@@ -84,6 +86,7 @@ const BOOKING_ERRORS: Record<string, { status: number; code: Parameters<typeof a
   slot_in_past: { status: 422, code: "slot_in_past", message: "The slot is in the past." },
   slot_too_far: { status: 422, code: "date_out_of_range", message: "The slot is too far in the future." },
   outside_opening_hours: { status: 422, code: "outside_opening_hours", message: "The service doesn't fit into opening hours." },
+  business_closed: { status: 422, code: "business_closed", message: "The business is closed on this day (holiday)." },
   slot_misaligned: { status: 422, code: "slot_misaligned", message: "Start time isn't one of the offered slot times." },
   service_not_found: { status: 404, code: "service_not_found", message: "Service not found or not active." },
 };
@@ -209,7 +212,11 @@ export function createApiHandlers(deps: ApiDeps) {
         });
       }
 
-      const opening = await store.getOpeningHours(business.id, isoWeekday(date));
+      const [regularHours, holiday] = await Promise.all([
+        store.getOpeningHours(business.id, isoWeekday(date)),
+        store.isClosedOn(business.id, date),
+      ]);
+      const opening = holiday ? null : regularHours;
       const busy = opening
         ? await store.getBusyIntervals(
             business.id,
@@ -234,6 +241,7 @@ export function createApiHandlers(deps: ApiDeps) {
           date,
           timezone: business.timezone,
           closed: opening === null,
+          ...(holiday ? { closed_reason: "holiday" } : regularHours === null ? { closed_reason: "regular" } : {}),
           service: { id: service.id, name: service.name, duration_minutes: service.duration_minutes },
           slots: slots.map((start) => ({
             starts_at: start.toISOString(),
@@ -316,6 +324,20 @@ export function createApiHandlers(deps: ApiDeps) {
     });
   }
 
+  /** GET /api/v1/bookings/{id} */
+  function getBooking(request: Request, bookingId: string) {
+    return withApi(request, "read", async ({ business }) => {
+      if (!isUuid(bookingId)) {
+        return apiError(400, "validation_error", "Invalid booking ID.", {
+          details: [{ field: "id", message: "Must be a UUID." }],
+        });
+      }
+      const booking = await store.getBooking(business.id, bookingId.toLowerCase());
+      if (!booking) return apiError(404, "booking_not_found", "Booking not found.");
+      return apiJson({ data: serializeBooking(booking, business.timezone) });
+    });
+  }
+
   /** POST /api/v1/bookings/{id}/cancel */
   function cancelBooking(request: Request, bookingId: string) {
     return withApi(request, "write", async ({ business }) => {
@@ -345,7 +367,7 @@ export function createApiHandlers(deps: ApiDeps) {
     });
   }
 
-  return { listServices, getSlots, createBooking, cancelBooking };
+  return { listServices, getSlots, createBooking, getBooking, cancelBooking };
 }
 
 export type ApiHandlers = ReturnType<typeof createApiHandlers>;

@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { FormMessage } from "@/components/form-message";
+import { ConfirmSubmit } from "@/components/confirm-submit";
 import { formatDuration, formatPrice } from "@/lib/format";
 import type { Service } from "@/lib/database.types";
 import { createService, deleteService, updateService } from "./actions";
@@ -133,9 +134,14 @@ export function ServiceItem({ service }: { service: Service }) {
         <form action={deleteAction} className="border-t border-stone-100 pt-4">
           <input type="hidden" name="id" value={service.id} />
           <FormMessage state={deleteState} />
-          <SubmitButton className="btn-danger mt-2" pendingText="Mažu…">
-            Smazat službu
-          </SubmitButton>
+          <div className="mt-2">
+            <ConfirmSubmit
+              label="Smazat službu"
+              question="Opravdu smazat? Službu se staršími rezervacemi raději jen skryjte."
+              confirmLabel="Ano, smazat"
+              pendingText="Mažu…"
+            />
+          </div>
         </form>
       </div>
     </details>

@@ -43,6 +43,10 @@ function KeyValue({ value, onHide }: { value: string; onHide: () => void }) {
           readOnly
           value={value}
           onFocus={(e) => e.currentTarget.select()}
+          // Read-only field inside the manager's form: Enter must not submit it.
+          onKeyDown={(e) => {
+            if (e.key === "Enter") e.preventDefault();
+          }}
           className="input font-mono text-xs"
           spellCheck={false}
           autoComplete="off"

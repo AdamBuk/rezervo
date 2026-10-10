@@ -2,25 +2,25 @@
 
 import { after } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { verifyBookingManageToken } from "@/lib/booking-link";
+import { getBookingLinkSecret, verifyBookingManageToken } from "@/lib/booking-link";
 import { CUSTOMER_CANCEL_NOTICE_HOURS } from "@/lib/constants";
 import { notifyBookingCancelledByCustomer } from "@/lib/notifications";
-import { createSupabaseRateLimiter, getClientIp } from "@/lib/rate-limit";
+import { isRateLimitedByIp } from "@/lib/rate-limit";
 import { getSiteUrl } from "@/lib/site-url";
+import { isUuid } from "@/lib/validation";
 
 export type CancelState = { status: "idle" } | { status: "error"; error: string } | { status: "cancelled" };
-
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function cancelOwnBooking(_prev: CancelState, formData: FormData): Promise<CancelState> {
   const id = String(formData.get("id") ?? "").toLowerCase();
   const token = String(formData.get("token") ?? "");
-  if (!UUID.test(id) || !verifyBookingManageToken(id, token, process.env.API_KEY_ENCRYPTION_SECRET)) {
+  if (!isUuid(id) || !verifyBookingManageToken(id, token, getBookingLinkSecret())) {
     return { status: "error", error: "Odkaz není platný. Otevřete ho prosím znovu z e-mailu." };
   }
 
-  const limit = await createSupabaseRateLimiter().hit(`cancel:ip:${await getClientIp()}`, 10, 600);
-  if (!limit.allowed) return { status: "error", error: "Příliš mnoho pokusů. Zkuste to prosím za pár minut." };
+  if (await isRateLimitedByIp("cancel", 10, 600)) {
+    return { status: "error", error: "Příliš mnoho pokusů. Zkuste to prosím za pár minut." };
+  }
 
   // The token proves the customer got the link for this booking, so the
   // privileged client is safe here: the update is scoped to this one id.

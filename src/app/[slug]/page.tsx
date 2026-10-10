@@ -17,12 +17,20 @@ export async function generateMetadata({ params }: PageProps<"/[slug]">): Promis
   };
 }
 
+const dayMonth = new Intl.DateTimeFormat("cs-CZ", { timeZone: "UTC", day: "numeric", month: "numeric" });
+
+/** "2026-12-24", "2026-12-26" → "24. 12. – 26. 12." (single day → "24. 12.") */
+function formatClosure(startsOn: string, endsOn: string): string {
+  const fmt = (d: string) => dayMonth.format(new Date(`${d}T00:00:00Z`));
+  return startsOn === endsOn ? fmt(startsOn) : `${fmt(startsOn)} – ${fmt(endsOn)}`;
+}
+
 export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
   const { slug } = await params;
   const data = await getPublicBusiness(slug);
   if (!data) notFound();
 
-  const { business, services, hours } = data;
+  const { business, services, hours, closures } = data;
   const today = todayInTimeZone(business.timezone);
   const todayWeekday = isoWeekday(today);
 
@@ -49,6 +57,7 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
           business={business}
           services={services}
           openWeekdays={hours.map((h) => h.weekday)}
+          closures={closures}
           today={today}
         />
 
@@ -75,6 +84,18 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
               );
             })}
           </dl>
+          {closures.length > 0 && (
+            <div className="mt-4 border-t border-stone-100 pt-4">
+              <h3 className="font-semibold">Mimořádně zavřeno</h3>
+              <ul className="mt-2 space-y-1 text-stone-600">
+                {closures.slice(0, 5).map((c) => (
+                  <li key={`${c.starts_on}-${c.ends_on}`} className="tabular-nums">
+                    {formatClosure(c.starts_on, c.ends_on)}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </aside>
       </main>
 

@@ -31,9 +31,21 @@ export function createSupabaseRateLimiter(): RateLimiter {
   };
 }
 
-/** Best-effort client IP from proxy headers (Vercel sets x-forwarded-for / x-real-ip). */
-export async function getClientIp(): Promise<string> {
+/** Best-effort client IP from proxy headers (Vercel sets x-forwarded-for / x-real-ip); null when unknown. */
+export async function getClientIp(): Promise<string | null> {
   const h = await headers();
   const forwarded = h.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return forwarded || h.get("x-real-ip")?.trim() || "unknown";
+  return forwarded || h.get("x-real-ip")?.trim() || null;
+}
+
+/**
+ * Counts one attempt for the visitor's IP and reports whether they're over the limit.
+ * Without a known IP the check is skipped: a shared "unknown" bucket would make
+ * all visitors block each other.
+ */
+export async function isRateLimitedByIp(scope: string, limit: number, windowSeconds: number): Promise<boolean> {
+  const ip = await getClientIp();
+  if (!ip) return false;
+  const result = await createSupabaseRateLimiter().hit(`${scope}:ip:${ip}`, limit, windowSeconds);
+  return !result.allowed;
 }

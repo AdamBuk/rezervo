@@ -25,7 +25,7 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
-      <Link href={closeHref} scroll={false} aria-label="Zavřít detail" className="absolute inset-0 animate-[fade-in_200ms_ease-out] bg-stone-900/30 motion-reduce:animate-none" />
+      <Link href={closeHref} scroll={false} aria-label="Zavřít detail" className="absolute inset-0 animate-[fade-in_200ms_ease-out] bg-stone-900/30" />
       <DrawerShell closeHref={closeHref} labelledBy="booking-title">
         <div className="flex items-center justify-between border-b border-stone-200 px-5 py-4">
           <h2 id="booking-title" className="font-semibold">

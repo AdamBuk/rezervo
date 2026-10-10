@@ -55,7 +55,7 @@ export async function rescheduleBooking(_prev: ActionState, formData: FormData):
   if (startsAt.getTime() === new Date(booking.starts_at).getTime()) return { error: "Vyberte jiný termín než stávající." };
 
   // Check against opening hours and other bookings (excluding this one).
-  const [{ data: opening }, { data: others }] = await Promise.all([
+  const [{ data: regularOpening }, { data: others }, { data: closure }] = await Promise.all([
     supabase
       .from("opening_hours")
       .select("opens_at, closes_at")
@@ -70,7 +70,17 @@ export async function rescheduleBooking(_prev: ActionState, formData: FormData):
       .neq("id", id)
       .lt("starts_at", zonedTimeToUtc(addDays(date, 1), 0, business.timezone).toISOString())
       .gt("ends_at", zonedTimeToUtc(date, 0, business.timezone).toISOString()),
+    supabase
+      .from("closures")
+      .select("id")
+      .eq("business_id", business.id)
+      .lte("starts_on", date)
+      .gte("ends_on", date)
+      .limit(1)
+      .maybeSingle(),
   ]);
+  if (closure) return { error: "V tento den máte nastavené zavřeno (dovolená). Vyberte jiný den." };
+  const opening = regularOpening;
 
   const duration = booking.services.duration_minutes;
   const available = computeAvailableSlots({

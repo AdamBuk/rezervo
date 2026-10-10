@@ -45,6 +45,13 @@ export function computeAvailableSlots(input: SlotInput): Date[] {
   return slots;
 }
 
+export type DateRange = { starts_on: string; ends_on: string };
+
+/** Whether a calendar day ("YYYY-MM-DD") falls into any of the inclusive ranges. */
+export function isClosedOn(date: string, closures: readonly DateRange[]): boolean {
+  return closures.some((c) => c.starts_on <= date && date <= c.ends_on);
+}
+
 export type NextAvailableInput = Omit<SlotInput, "date" | "opening"> & {
   /** First and last calendar day to check, inclusive ("YYYY-MM-DD") */
   from: string;

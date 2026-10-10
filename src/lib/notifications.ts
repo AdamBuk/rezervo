@@ -12,7 +12,7 @@ import {
   type BookingEmailData,
 } from "@/lib/email/templates";
 import { addDays, todayInTimeZone, toZoned } from "@/lib/time";
-import { bookingManageUrl } from "@/lib/booking-link";
+import { bookingManageUrl, getBookingLinkSecret } from "@/lib/booking-link";
 
 const BOOKING_SELECT =
   "id, starts_at, customer_name, customer_email, customer_phone, services(name, duration_minutes, price_czk), businesses(name, slug, address, phone, timezone, notification_email)" as const;
@@ -53,7 +53,7 @@ function toEmailData(b: BookingWithRelations, siteUrl: string): BookingEmailData
       notificationEmail: b.businesses.notification_email,
     },
     siteUrl,
-    manageUrl: bookingManageUrl(siteUrl, b.id, process.env.API_KEY_ENCRYPTION_SECRET),
+    manageUrl: bookingManageUrl(siteUrl, b.id, getBookingLinkSecret()),
   };
 }
 

@@ -23,7 +23,10 @@ Rezervační systém pro kadeřnictví, fyzioterapie, masáže a podobné malé 
 - **E-maily** – potvrzení zákazníkovi, upozornění majiteli, připomínka den předem (Vercel Cron), oznámení o zrušení/přesunu.
 - **Administrace** – kalendář den/týden se souhrnem (počet rezervací, očekávaná tržba, nejbližší zákazník) a čarou aktuálního času, detail rezervace, zrušení a přesun termínu.
 - **Pohodlí pro zákazníka** – automatický skok na nejbližší volný den, po rezervaci přidání do Google/Apple/Outlook kalendáře (.ics).
-- **Ochrana proti spamu** – honeypot a limit 5 rezervací za 10 minut z jedné IP adresy (sdílený Postgres rate limiter).
+- **Ochrana proti spamu** – honeypot a limit 8 rezervací za 10 minut z jedné IP adresy (sdílený Postgres rate limiter).
+- **Zrušení zákazníkem** – v potvrzení i připomínce je podepsaný odkaz (`/rezervace/<id>/<token>`, HMAC – nic se neukládá) na stránku, kde zákazník rezervaci zruší nejpozději 2 hodiny předem; majitel dostane e-mail.
+- **Dovolená a zavírací dny** – majitel nastaví svátky/dovolenou, v tyto dny se termíny nenabízejí (web, API) a databáze rezervaci odmítne.
+- **Zapomenuté heslo** – obnova přes e-mail (Supabase Auth), bez prozrazení, zda účet existuje.
 - **Veřejné REST API** pro externí aplikace (např. AI asistenta) – služby, volné termíny, vytvoření a zrušení rezervace; API klíč si majitel spravuje v administraci. Viz [Veřejné REST API](#veřejné-rest-api).
 
 ## Architektura a zajímavá místa
@@ -74,13 +77,14 @@ Požadavky: Node.js 20+ a účet na [supabase.com](https://supabase.com) (free t
    ```
 2. **Supabase projekt** – vytvořte nový projekt a v **SQL Editoru** spusťte postupně všechny soubory ze
    [`supabase/migrations/`](supabase/migrations/) v pořadí podle názvu
-   (`20261008000000_initial_schema.sql`, pak `20261010000000_public_api.sql`),
+   (`…_initial_schema.sql`, `…_public_api.sql`, `…_reserved_slugs.sql`, `…_closures.sql`),
    případně `npx supabase link` + `npx supabase db push`.
 3. **Proměnné prostředí** – zkopírujte `.env.example` do `.env.local` a doplňte:
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` – *Project Settings → API Keys* (secret key je nutný pro e-maily, připomínky, seed a veřejné API)
    - `RESEND_API_KEY`, `EMAIL_FROM` – volitelné; bez nich se e-maily jen vypisují do terminálu
    - `CRON_SECRET` – libovolný dlouhý náhodný řetězec
-   - `API_KEY_ENCRYPTION_SECRET` – náhodný řetězec (min. 32 znaků), kterým se šifrují uložené API klíče; vygenerujete ho příkazem `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Hodnotu později neměňte – jinak stávající klíč nepůjde v administraci zobrazit (fungovat ale bude dál).
+   - `API_KEY_ENCRYPTION_SECRET` – náhodný řetězec (min. 32 znaků), kterým se šifrují uložené API klíče; vygenerujete ho příkazem `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`. Hodnotu později neměňte – jinak stávající klíč nepůjde v administraci zobrazit (fungovat ale bude dál). Slouží zároveň k podpisu odkazů „Zobrazit nebo zrušit rezervaci“ v e-mailech, pokud nenastavíte samostatný `BOOKING_LINK_SECRET`.
+   - `BOOKING_LINK_SECRET` – volitelné, min. 32 znaků; samostatné tajemství pro odkazy zákazníků. Jeho změna zneplatní odkazy v už odeslaných e-mailech.
 4. **Auth nastavení v Supabase** – *Authentication → URL Configuration*: Site URL `http://localhost:3000`, do Redirect URLs přidejte `http://localhost:3000/auth/callback`.
    (Pro rychlé testování lze v *Authentication → Providers → Email* vypnout „Confirm email“.)
 5. **Demo data** (volitelné)
@@ -184,7 +188,7 @@ curl "https://<doména>/api/v1/slots?service_id=5b0c6f8e-…&date=2026-10-14" -H
 }
 ```
 
-`date` je kalendářní den v časovém pásmu podniku. Rezervovat lze od dneška do 60 dnů dopředu (jinak `422 date_out_of_range` s `details.min_date` / `details.max_date`). Zavřený den vrací `closed: true` a prázdné `slots`. Termíny začínající dřív než za 30 minut se nenabízejí.
+`date` je kalendářní den v časovém pásmu podniku. Rezervovat lze od dneška do 60 dnů dopředu (jinak `422 date_out_of_range` s `details.min_date` / `details.max_date`). Zavřený den vrací `closed: true`, prázdné `slots` a `closed_reason` (`"regular"` – mimo otevírací dny, `"holiday"` – dovolená/svátek). Termíny začínající dřív než za 30 minut se nenabízejí.
 
 #### `POST /bookings` – vytvoření rezervace
 
@@ -220,6 +224,14 @@ Odpověď `201 Created` (+ hlavička `Location`):
 
 `starts_at` použijte přesně z odpovědi `/slots`. Zákazník i majitel dostanou stejné e-maily jako u rezervace z webu. Validace: `customer.name` 2–100 znaků, platný `customer.email`, `customer.phone` 6–30 znaků (číslice, mezery, `()`, `-`, volitelně `+` na začátku). Dvojí rezervaci téhož času brání databáze i při souběžných požadavcích – druhý dostane `409 slot_taken`.
 
+#### `GET /bookings/{id}` – detail rezervace
+
+```bash
+curl https://<doména>/api/v1/bookings/9d4f… -H "Authorization: Bearer $REZERVO_API_KEY"
+```
+
+Vrací stejný objekt jako vytvoření rezervace (včetně aktuálního `status`). Na tuto adresu ukazuje hlavička `Location` z `POST /bookings`.
+
 #### `POST /bookings/{id}/cancel` – zrušení rezervace
 
 ```bash
@@ -250,6 +262,7 @@ Vrací `200` a rezervaci se `"status": "cancelled"`; zákazník dostane e-mail o
 | 422 | `slot_too_soon` | Termín začíná dřív než za 30 minut |
 | 422 | `date_out_of_range` | Datum je mimo rezervační okno (dnes až +60 dní) |
 | 422 | `outside_opening_hours` | Služba se nevejde do otevírací doby |
+| 422 | `business_closed` | Podnik má v tento den zavřeno (dovolená, svátek) |
 | 422 | `slot_misaligned` | Čas neodpovídá nabízeným slotům (krok podniku) |
 | 429 | `rate_limited` | Překročený limit, viz `Retry-After` |
 | 500 | `internal_error` | Chyba na straně serveru (detaily jen v logu) |
@@ -259,7 +272,7 @@ Vrací `200` a rezervaci se `"status": "cancelled"`; zákazník dostane e-mail o
 1. `GET /services` → nabídnout službu a zjistit `timezone` podniku.
 2. `GET /slots` pro zvolený den → nabídnout časy (`local_time`).
 3. `POST /bookings` se `starts_at` vybraného slotu. Při `409 slot_taken` načíst sloty znovu a nabídnout jiný čas.
-4. Uložit si `data.id` – je potřeba pro `POST /bookings/{id}/cancel`.
+4. Uložit si `data.id` – stav zjistíte přes `GET /bookings/{id}`, zrušíte přes `POST /bookings/{id}/cancel`.
 
 ## Nasazení na Vercel
 
@@ -273,5 +286,15 @@ Vrací `200` a rezervaci se `"status": "cancelled"`; zákazník dostane e-mail o
 ## Omezení MVP a možná rozšíření
 
 - Jeden „zdroj“ na podnik (jedno křeslo/jeden terapeut) – rezervace se nesmí překrývat v rámci celého podniku. Rozšíření: zaměstnanci a jejich vlastní kalendáře.
-- Jeden časový interval otevírací doby na den (bez polední pauzy) a bez svátků/dovolených.
-- Zákazník nemůže rezervaci zrušit sám odkazem z e-mailu (zatím jen majitel).
+- Jeden časový interval otevírací doby na den (bez polední pauzy).
+- Zákazník může rezervaci zrušit, ale ne přesunout – pro změnu termínu si zarezervuje nový.
+
+## Obnova hesla na jiném zařízení
+
+Supabase ve výchozím nastavení posílá odkaz pro obnovu hesla v režimu PKCE – funguje jen v prohlížeči, ve kterém uživatel o obnovu požádal. Aby šel odkaz otevřít kdekoli (třeba žádost na počítači, e-mail v telefonu), změňte v Supabase *Authentication → Emails → Reset Password* odkaz na:
+
+```
+{{ .SiteURL }}/auth/callback?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password
+```
+
+(Stejně lze upravit šablonu *Confirm signup* s `type=signup&next=/dashboard/setup`.) Callback `/auth/callback` umí oba způsoby.
