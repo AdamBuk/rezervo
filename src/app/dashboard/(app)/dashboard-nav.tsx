@@ -8,6 +8,7 @@ const items = [
   { href: "/dashboard/services", label: "Služby" },
   { href: "/dashboard/hours", label: "Otevírací doba" },
   { href: "/dashboard/settings", label: "Nastavení" },
+  { href: "/dashboard/api", label: "API" },
 ] as const;
 
 export function DashboardNav() {

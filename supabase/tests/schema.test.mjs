@@ -15,13 +15,13 @@ const db = new PGlite({ extensions: { btree_gist } });
 await db.exec(`
   create schema extensions;
   create schema auth;
-  create role anon; create role authenticated; create role service_role;
+  create role anon; create role authenticated; create role service_role bypassrls;
   create table auth.users (id uuid primary key, email text);
   create function auth.uid() returns uuid language sql stable as
     $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   grant usage on schema auth to anon, authenticated;
   grant execute on function auth.uid() to anon, authenticated;
-  grant usage on schema public to anon, authenticated;
+  grant usage on schema public to anon, authenticated, service_role;
   set search_path = public, extensions;
 `);
 for (const m of migrations) await db.exec(readFileSync(m, "utf8"));
@@ -98,6 +98,54 @@ await expect("owner cancels 10:00", () => db.query(`update bookings set status='
 await db.exec("reset role");
 await db.exec("set role anon");
 await expect("rebook cancelled slot 10:00", () => book(at(0)).then(r => r.rows[0]));
+await db.exec("reset role");
+
+// --- Public API: keys and rate limiting ------------------------------------
+const hash = (c) => c.repeat(64);
+const rotate = (h) => db.query("select rotate_api_key($1, 'rzv_live_abcd', 'v1.iv.tag.ct') as id", [h]);
+
+await db.exec(`set role authenticated; set request.jwt.claim.sub = '${owner}'`);
+await expect("owner creates api key", () => rotate(hash("a")).then(r => r.rows.length));
+await expect("owner rotates api key", () => rotate(hash("b")).then(r => r.rows.length));
+await expect("one active key after rotation", () => db.query(
+  "select count(*) filter (where revoked_at is null) as active, count(*) as total from api_keys").then(r => r.rows[0]));
+await expect("owner cannot read key_hash", () => db.query("select key_hash from api_keys"), /permission denied/);
+await expect("owner reads encrypted key", () => db.query("select key_ciphertext from api_keys where revoked_at is null").then(r => {
+    if (r.rows[0]?.key_ciphertext !== 'v1.iv.tag.ct') throw new Error(JSON.stringify(r.rows));
+    return r.rows.length;
+  }));
+await expect("owner cannot change key_hash", () => db.query("update api_keys set key_hash = $1", [hash("c")]), /permission denied/);
+await expect("second active key rejected", () => db.query(
+  "insert into api_keys (business_id, key_hash, key_prefix, key_ciphertext) values ($1, $2, 'rzv_live_x', 'v1.iv.tag.ct')", [biz.id, hash("d")]),
+  /api_keys_one_active_per_business/);
+await expect("invalid hash rejected", () => rotate("not-a-hash"), /api_keys_key_hash_check/);
+await db.exec("reset role");
+
+await db.exec(`set role authenticated; set request.jwt.claim.sub = '${other}'`);
+await expect("other user sees 0 api keys", () => db.query("select count(*) from api_keys").then(r => r.rows[0]));
+await expect("other user cannot rotate without business", () => rotate(hash("e")), /business_not_found/);
+await expect("other user cannot add key to foreign business", () => db.query(
+  "insert into api_keys (business_id, key_hash, key_prefix, key_ciphertext) values ($1, $2, 'rzv_live_x', 'v1.iv.tag.ct')", [biz.id, hash("f")]), /row-level/);
+await expect("other user revoke affects 0", () => db.query(
+  "update api_keys set revoked_at = now() where business_id = $1", [biz.id]).then(r => r.affectedRows));
+await expect("authenticated cannot use rate limiter", () => db.query("select * from api_rate_limit_hit('x', 1, 60)"), /permission denied/);
+await db.exec("reset role");
+
+await db.exec("set role anon");
+await expect("anon cannot read api keys", () => db.query("select id from api_keys"), /permission denied/);
+await db.exec("reset role");
+
+await db.exec("set role service_role");
+await expect("service role finds active key", () => db.query(
+  "select business_id from api_keys where key_hash = $1 and revoked_at is null", [hash("b")]).then(r => {
+    if (r.rows.length !== 1) throw new Error(`expected 1 row, got ${r.rows.length}`);
+    return r.rows.length;
+  }));
+const hit = () => db.query("select * from api_rate_limit_hit('test', 2, 3600)").then(r => r.rows[0]);
+await expect("rate limit hit 1 allowed", async () => { const r = await hit(); if (!r.allowed || r.remaining !== 1) throw new Error(JSON.stringify(r)); return r; });
+await expect("rate limit hit 2 allowed", async () => { const r = await hit(); if (!r.allowed || r.remaining !== 0) throw new Error(JSON.stringify(r)); return r; });
+await expect("rate limit hit 3 denied", async () => { const r = await hit(); if (r.allowed) throw new Error(JSON.stringify(r)); return r; });
+await expect("rate limit rejects bad config", () => db.query("select * from api_rate_limit_hit('x', 0, 60)"), /invalid_rate_limit/);
 await db.exec("reset role");
 
 console.log(failures ? `\n${failures} FAILURES` : "\nALL PASSED");

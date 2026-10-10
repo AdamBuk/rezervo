@@ -181,6 +181,53 @@ export type Database = {
           },
         ];
       };
+      api_keys: {
+        Row: {
+          id: string;
+          business_id: string;
+          key_hash: string;
+          key_prefix: string;
+          key_ciphertext: string;
+          created_at: string;
+          last_used_at: string | null;
+          revoked_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          key_hash: string;
+          key_prefix: string;
+          key_ciphertext: string;
+          created_at?: string;
+          last_used_at?: string | null;
+          revoked_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          key_hash?: string;
+          key_prefix?: string;
+          key_ciphertext?: string;
+          created_at?: string;
+          last_used_at?: string | null;
+          revoked_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      api_rate_limits: {
+        Row: { bucket: string; window_start: string; hits: number };
+        Insert: { bucket: string; window_start: string; hits?: number };
+        Update: { bucket?: string; window_start?: string; hits?: number };
+        Relationships: [];
+      };
     };
     Views: { [_ in never]: never };
     Functions: {
@@ -199,6 +246,14 @@ export type Database = {
         };
         Returns: string;
       };
+      rotate_api_key: {
+        Args: { p_key_hash: string; p_key_prefix: string; p_key_ciphertext: string };
+        Returns: string;
+      };
+      api_rate_limit_hit: {
+        Args: { p_bucket: string; p_limit: number; p_window_seconds: number };
+        Returns: { allowed: boolean; remaining: number; reset_at: string }[];
+      };
     };
     Enums: { [_ in never]: never };
     CompositeTypes: { [_ in never]: never };
@@ -212,3 +267,4 @@ export type Business = Tables<"businesses">;
 export type Service = Tables<"services">;
 export type OpeningHours = Tables<"opening_hours">;
 export type Booking = Tables<"bookings">;
+export type ApiKey = Tables<"api_keys">;

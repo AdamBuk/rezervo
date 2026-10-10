@@ -3,10 +3,7 @@ import { cache } from "react";
 import { createPublicClient } from "@/lib/supabase/public";
 import { computeAvailableSlots } from "@/lib/slots";
 import { addDays, isoWeekday, isValidDateString, todayInTimeZone, zonedTimeToUtc } from "@/lib/time";
-import { BOOKING_HORIZON_DAYS } from "@/lib/constants";
-
-/** Customers can't book a slot starting sooner than this. */
-export const MIN_NOTICE_MINUTES = 30;
+import { BOOKING_HORIZON_DAYS, MIN_NOTICE_MINUTES } from "@/lib/constants";
 
 /** Public booking page data, looked up by slug. */
 export const getPublicBusiness = cache(async (slug: string) => {
