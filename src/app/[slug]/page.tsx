@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { notFound } from "next/navigation";
 import { getPublicBusiness } from "@/lib/availability";
 import { isoWeekday, todayInTimeZone } from "@/lib/time";
@@ -40,7 +41,7 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
         <div className="glass flex animate-[rise-in_420ms_var(--ease-out)_both] flex-col gap-4 rounded-3xl p-5 motion-reduce:animate-[fade-in_200ms_ease-out_both] sm:flex-row sm:items-center sm:justify-between sm:p-6">
           <div className="flex min-w-0 items-center gap-4">
             <span
-              className="grid size-14 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-brand-500 to-brand-800 text-xl font-bold text-white shadow-(--shadow-brand)"
+              className="grid size-14 shrink-0 place-items-center rounded-2xl bg-linear-to-br from-brand-500 to-accent-deep text-xl font-bold text-white shadow-(--shadow-brand)"
               aria-hidden
             >
               {business.name.trim().charAt(0).toUpperCase()}
@@ -59,7 +60,7 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
                 href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(business.address)}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-white/80 bg-white/60 px-2.5 py-1 text-stone-600 transition-colors hover:bg-white hover:text-stone-900"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-edge/80 bg-surface/60 px-2.5 py-1 text-stone-600 transition-colors hover:bg-surface hover:text-stone-900"
               >
                 <svg viewBox="0 0 20 20" className="size-4 text-brand-600" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
                   <path d="M10 17.5s5.5-4.6 5.5-9a5.5 5.5 0 1 0-11 0c0 4.4 5.5 9 5.5 9Z" />
@@ -72,7 +73,7 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
             {business.phone && (
               <a
                 href={`tel:${business.phone.replace(/\s/g, "")}`}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-white/80 bg-white/60 px-2.5 py-1 text-stone-600 tabular-nums transition-colors hover:bg-white hover:text-stone-900"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-edge/80 bg-surface/60 px-2.5 py-1 text-stone-600 tabular-nums transition-colors hover:bg-surface hover:text-stone-900"
               >
                 <svg viewBox="0 0 20 20" className="size-4 text-brand-600" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
                   <path d="M6.5 3.5h-2a1 1 0 0 0-1 1.1A12.5 12.5 0 0 0 15.4 16.5a1 1 0 0 0 1.1-1v-2l-3-1.2-1.5 1.5a8.5 8.5 0 0 1-4.3-4.3l1.5-1.5Z" strokeLinejoin="round" />
@@ -131,11 +132,14 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
         </aside>
       </main>
 
-      <footer className="py-5 text-center text-xs text-stone-400">
-        Rezervace přes{" "}
-        <Link href="/" className="font-semibold hover:text-stone-600">
-          Rezervo
-        </Link>
+      <footer className="flex flex-col items-center gap-3 py-6 text-xs text-stone-400">
+        <p>
+          Rezervace přes{" "}
+          <Link href="/" className="font-semibold hover:text-stone-600">
+            Rezervo
+          </Link>
+        </p>
+        <ThemeToggle />
       </footer>
     </div>
   );

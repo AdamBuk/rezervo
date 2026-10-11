@@ -56,7 +56,7 @@ export function CancelOwnBooking({ bookingId, token, bookAgainHref }: Props) {
             Opravdu chcete rezervaci zrušit? Termín se uvolní pro ostatní zákazníky.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <SubmitButton className="btn bg-red-600 text-white hover:bg-red-700" pendingText="Ruším…">
+            <SubmitButton className="btn-destructive" pendingText="Ruším…">
               Ano, zrušit rezervaci
             </SubmitButton>
             <button ref={keepRef} type="button" onClick={() => setConfirming(false)} className="btn-secondary">

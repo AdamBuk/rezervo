@@ -42,7 +42,7 @@ export function ConfirmSubmit({ label, question, confirmLabel, pendingText, clas
   return (
     <div role="group" aria-label={question} className="flex flex-wrap items-center gap-2">
       <span className="text-sm text-stone-600">{question}</span>
-      <SubmitButton className="btn bg-red-600 text-white hover:bg-red-700" pendingText={pendingText}>
+      <SubmitButton className="btn-destructive" pendingText={pendingText}>
         {confirmLabel}
       </SubmitButton>
       <button ref={backRef} type="button" className="btn-secondary" onClick={() => setConfirming(false)}>

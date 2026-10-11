@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getBookingLinkSecret, verifyBookingManageToken } from "@/lib/booking-link";
@@ -62,7 +63,7 @@ export default async function ManageBookingPage({ params }: PageProps<"/rezervac
           <StatusBadge status={booking.status} isPast={isPast} />
         </div>
 
-        <dl className="mt-4 space-y-2 rounded-xl border border-white/80 bg-white/60 p-4 text-sm">
+        <dl className="mt-4 space-y-2 rounded-xl border border-edge/80 bg-surface/60 p-4 text-sm">
           <div className="flex justify-between gap-4">
             <dt className="text-stone-500">Jméno</dt>
             <dd className="min-w-0 truncate font-medium">{booking.customer_name}</dd>
@@ -118,12 +119,15 @@ export default async function ManageBookingPage({ params }: PageProps<"/rezervac
         </div>
       </section>
 
-      <p className="mt-6 text-center text-xs text-stone-400">
-        Rezervace přes{" "}
-        <Link href="/" className="font-semibold hover:text-stone-600">
-          Rezervo
-        </Link>
-      </p>
+      <footer className="mt-8 flex flex-col items-center gap-3 text-xs text-stone-400">
+        <p>
+          Rezervace přes{" "}
+          <Link href="/" className="font-semibold hover:text-stone-600">
+            Rezervo
+          </Link>
+        </p>
+        <ThemeToggle />
+      </footer>
     </main>
   );
 }

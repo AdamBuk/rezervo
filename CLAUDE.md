@@ -53,5 +53,6 @@ Veřejné API pro externí aplikace (připravovaný AI asistent). Dokumentace pr
 - **Zapomenuté heslo**: `/forgot-password` → e-mail → `/auth/callback?next=/reset-password` → `/reset-password`.
 - **Sdílené validace**: `src/lib/validation.ts` (UUID, jméno, telefon) – používat ve formulářích, API i akcích. Bezpečné přesměrování: `safeRedirectPath()`.
 - **Rate limiting**: `isRateLimitedByIp()` (`src/lib/rate-limit.ts`) – bez známé IP se limit přeskočí. Rezervace 8/10 min, zrušení 10/10 min, reset hesla 5/15 min.
+- **Tmavý režim**: třída `.dark` na `<html>` (inline skript `THEME_INIT_SCRIPT` v `src/lib/theme.ts` před vykreslením, přepínač `ThemeToggle` – světlý/tmavý/systém, `localStorage.theme`). V `globals.css` se v `.dark` přemapují škály stone/sand/brand/red/amber, takže běžné třídy fungují bez `dark:`. Nepoužívat `bg-white`/`border-white` → `bg-surface`/`border-edge`; plné výplně pod bílým textem → `bg-accent`/`accent-strong`/`accent-deep`, destruktivní tlačítko `btn-destructive` (škála brand je v tmavém režimu zesvětlená pro text).
 - **UI pravidla**: vstupy 16 px na dotykových zařízeních (`pointer-coarse`), destruktivní akce přes `ConfirmSubmit`, animace s `--ease-out`/`--ease-drawer` a `motion-reduce` fallbackem (fade).
 - Nové top-level routy přidat do `RESERVED_SLUGS` i do `businesses_slug_check` (migrace).

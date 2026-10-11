@@ -10,7 +10,7 @@ export default async function AppLayout({ children }: LayoutProps<"/dashboard">)
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-3">
           <span
-            className="grid size-10 shrink-0 place-items-center rounded-xl bg-linear-to-br from-brand-500 to-brand-800 font-bold text-white shadow-(--shadow-brand)"
+            className="grid size-10 shrink-0 place-items-center rounded-xl bg-linear-to-br from-brand-500 to-accent-deep font-bold text-white shadow-(--shadow-brand)"
             aria-hidden
           >
             {business.name.trim().charAt(0).toUpperCase()}

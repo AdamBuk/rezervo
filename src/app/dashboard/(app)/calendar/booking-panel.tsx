@@ -25,9 +25,9 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
-      <Link href={closeHref} scroll={false} aria-label="Zavřít detail" className="absolute inset-0 animate-[fade-in_200ms_ease-out] bg-stone-900/25 backdrop-blur-[2px]" />
+      <Link href={closeHref} scroll={false} aria-label="Zavřít detail" className="absolute inset-0 animate-[fade-in_200ms_ease-out] bg-stone-900/25 backdrop-blur-[2px] dark:bg-black/55" />
       <DrawerShell closeHref={closeHref} labelledBy="booking-title">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/70 bg-white/60 px-5 py-3.5 backdrop-blur-xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-edge/70 bg-surface/60 px-5 py-3.5 backdrop-blur-xl">
           <h2 id="booking-title" className="font-semibold">
             Detail rezervace
           </h2>
@@ -59,7 +59,7 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
               </p>
             </div>
 
-            <dl className="space-y-3 rounded-xl border border-white/80 bg-white/60 p-4 text-sm">
+            <dl className="space-y-3 rounded-xl border border-edge/80 bg-surface/60 p-4 text-sm">
               <div>
                 <dt className="text-stone-500">Zákazník</dt>
                 <dd className="font-medium">{booking.customer_name}</dd>

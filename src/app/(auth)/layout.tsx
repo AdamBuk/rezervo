@@ -1,4 +1,5 @@
 import { Logo } from "@/components/logo";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
@@ -7,6 +8,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
         <Logo />
       </div>
       <div className="card w-full max-w-sm">{children}</div>
+      <ThemeToggle className="mt-6" />
     </main>
   );
 }

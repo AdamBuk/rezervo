@@ -27,8 +27,8 @@ export function DashboardNav() {
                 aria-current={active ? "page" : undefined}
                 className={`block rounded-lg px-3.5 py-1.5 text-sm font-medium transition-[color,background-color,box-shadow] duration-200 ease-(--ease-out) ${
                   active
-                    ? "bg-white text-brand-800 shadow-(--shadow-glass)"
-                    : "text-stone-600 hover:bg-white/60 hover:text-stone-900"
+                    ? "bg-surface text-brand-800 shadow-(--shadow-glass)"
+                    : "text-stone-600 hover:bg-surface/60 hover:text-stone-900"
                 }`}
               >
                 {item.label}

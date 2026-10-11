@@ -67,7 +67,7 @@ export default function Home() {
         {/* Hero */}
         <section className="mx-auto grid max-w-6xl items-center gap-10 px-4 pt-8 pb-10 sm:px-6 lg:grid-cols-[1.05fr_1fr] lg:gap-14 lg:pt-14 lg:pb-12">
           <div className="stagger">
-            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/60 px-3 py-1 text-xs font-semibold text-brand-800 shadow-xs backdrop-blur">
+            <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-edge/70 bg-surface/60 px-3 py-1 text-xs font-semibold text-brand-800 shadow-xs backdrop-blur">
               <span className="size-1.5 rounded-full bg-brand-500" aria-hidden />
               Pro kadeřnictví, fyzio a masáže
             </p>
@@ -109,7 +109,7 @@ export default function Home() {
                 {days.map((d, i) => (
                   <div
                     key={d}
-                    className={`rounded-lg border px-1 py-2 ${i === 1 ? "border-brand-600 bg-brand-50 font-semibold text-brand-800" : "border-stone-200/80 bg-white/60 text-stone-600"}`}
+                    className={`rounded-lg border px-1 py-2 ${i === 1 ? "border-brand-600 bg-brand-50 font-semibold text-brand-800" : "border-stone-200/80 bg-surface/60 text-stone-600"}`}
                   >
                     {d}
                   </div>
@@ -121,10 +121,10 @@ export default function Home() {
                     key={t}
                     className={`rounded-lg border py-2 text-center tabular-nums ${
                       i === 4
-                        ? "border-brand-700 bg-brand-700 font-semibold text-white shadow-(--shadow-brand)"
+                        ? "border-accent-strong bg-accent-strong font-semibold text-white shadow-(--shadow-brand)"
                         : i === 2 || i === 5
                           ? "border-transparent bg-stone-100/70 text-stone-300 line-through"
-                          : "border-stone-200/80 bg-white/60 text-stone-700"
+                          : "border-stone-200/80 bg-surface/60 text-stone-700"
                     }`}
                   >
                     {t}
@@ -135,7 +135,7 @@ export default function Home() {
 
             {/* Overlapping notification adds depth */}
             <div className="glass-strong absolute -bottom-5 left-4 flex animate-[rise-in_600ms_var(--ease-out)_500ms_both] motion-reduce:animate-[fade-in_200ms_ease-out_both] sm:left-auto sm:-right-4 items-center gap-3 rounded-2xl border px-4 py-3 sm:-left-8">
-              <span className="grid size-9 place-items-center rounded-xl bg-brand-700 text-white shadow-(--shadow-brand)">
+              <span className="grid size-9 place-items-center rounded-xl bg-accent-strong text-white shadow-(--shadow-brand)">
                 <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth={2} aria-hidden>
                   <path d="M5 12.5l4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
@@ -164,7 +164,7 @@ export default function Home() {
                 key={f.title}
                 className={`card group transition-[transform,box-shadow] duration-200 ease-(--ease-out) hover:-translate-y-0.5 hover:shadow-(--shadow-lifted) motion-reduce:hover:translate-y-0 ${f.wide ? "sm:col-span-2" : ""}`}
               >
-                <span className="grid size-10 place-items-center rounded-xl border border-white/80 bg-brand-50/80 shadow-xs">
+                <span className="grid size-10 place-items-center rounded-xl border border-edge/80 bg-brand-50/80 shadow-xs">
                   {f.icon}
                 </span>
                 <h3 className="mt-4 font-semibold">{f.title}</h3>
@@ -184,7 +184,7 @@ export default function Home() {
               <ol className="mt-5 space-y-4">
                 {steps.map(([title, text], i) => (
                   <li key={title} className="relative flex gap-4">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand-700 text-sm font-bold text-white tabular-nums shadow-(--shadow-brand)">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent-strong text-sm font-bold text-white tabular-nums shadow-(--shadow-brand)">
                       {i + 1}
                     </span>
                     {i < steps.length - 1 && (
@@ -198,7 +198,7 @@ export default function Home() {
                 ))}
               </ol>
             </div>
-            <div className="rounded-2xl border border-brand-100 bg-linear-to-br from-brand-50/90 to-white/70 p-6">
+            <div className="rounded-2xl border border-brand-100 bg-linear-to-br from-brand-50/90 to-surface/70 p-6">
               <p className="text-lg font-semibold">Připraveni přijímat rezervace online?</p>
               <p className="mt-1 text-stone-600">Registrace je zdarma a nevyžaduje platební kartu.</p>
               <Link href="/register" className="btn-primary mt-5 w-full py-3 text-base sm:w-auto sm:px-6">

@@ -50,9 +50,9 @@ export function CalendarGrid({ days, today, timeZone, bookings, hours, now, book
     <div className="glass overflow-x-auto rounded-2xl">
       <div className={isWeek ? "min-w-[680px]" : ""}>
         {/* Day headers */}
-        <div className="grid border-b border-white/70 bg-white/40" style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, 1fr)` }}>
+        <div className="grid border-b border-edge/70 bg-surface/40" style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, 1fr)` }}>
           {/* Sticky so the time column stays visible when the week scrolls sideways on phones */}
-          <div className="sticky left-0 z-20 bg-white/85 backdrop-blur" />
+          <div className="sticky left-0 z-20 bg-surface/85 backdrop-blur" />
           {days.map((d) => {
             const wd = WEEKDAYS[isoWeekday(d) - 1];
             const isToday = d === today;
@@ -64,7 +64,7 @@ export function CalendarGrid({ days, today, timeZone, bookings, hours, now, book
                 className={`border-l border-stone-100 px-2 py-2 text-center text-sm hover:bg-stone-50 ${isToday ? "text-brand-700" : "text-stone-600"}`}
               >
                 <span className="font-medium">{isWeek ? wd.short : wd.label}</span>{" "}
-                <span className={`font-semibold ${isToday ? "rounded-full bg-brand-700 px-1.5 text-white" : "text-stone-900"}`}>
+                <span className={`font-semibold ${isToday ? "rounded-full bg-accent-strong px-1.5 text-white" : "text-stone-900"}`}>
                   {day}. {m}.
                 </span>
               </Link>
@@ -74,7 +74,7 @@ export function CalendarGrid({ days, today, timeZone, bookings, hours, now, book
 
         {/* Time grid */}
         <div className="grid" style={{ gridTemplateColumns: `3.5rem repeat(${days.length}, 1fr)` }}>
-          <div className="sticky left-0 z-20 bg-white/85 backdrop-blur" style={{ height: gridHeight }}>
+          <div className="sticky left-0 z-20 bg-surface/85 backdrop-blur" style={{ height: gridHeight }}>
             {hourLabels.map((h, i) => (
               <span key={h} className="absolute right-2 -translate-y-1/2 text-xs text-stone-400 tabular-nums" style={{ top: i * HOUR_HEIGHT }}>
                 {i === 0 ? "" : `${h}:00`}
@@ -89,7 +89,7 @@ export function CalendarGrid({ days, today, timeZone, bookings, hours, now, book
             return (
               <div key={d} className="relative border-l border-stone-200/50 bg-stone-100/40" style={{ height: gridHeight }}>
                 {/* Opening hours background */}
-                {opening && <div className="absolute inset-x-0 bg-white/70" style={{ top: openTop, height: openHeight }} />}
+                {opening && <div className="absolute inset-x-0 bg-surface/70" style={{ top: openTop, height: openHeight }} />}
                 {/* Hour lines */}
                 {hourLabels.map((h, i) => (
                   <div key={h} className="absolute inset-x-0 border-t border-stone-100" style={{ top: i * HOUR_HEIGHT }} />
@@ -117,7 +117,7 @@ export function CalendarGrid({ days, today, timeZone, bookings, hours, now, book
                         scroll={false}
                         className={`absolute inset-x-1 overflow-hidden rounded-md border-l-4 px-2 py-1 text-xs shadow-xs transition-colors focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-700 ${
                           b.id === selectedId
-                            ? "border-brand-900 bg-brand-700 text-white"
+                            ? "border-accent-deep bg-accent-strong text-white"
                             : past
                               ? "border-stone-300 bg-stone-100/80 text-stone-500 hover:bg-stone-200"
                               : "border-brand-600 bg-linear-to-b from-brand-100 to-brand-50 text-brand-950 hover:from-brand-200 hover:to-brand-100"

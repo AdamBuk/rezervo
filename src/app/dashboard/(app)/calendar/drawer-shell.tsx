@@ -62,7 +62,7 @@ export function DrawerShell({ closeHref, labelledBy, children }: Props) {
       aria-modal="true"
       aria-labelledby={labelledBy}
       tabIndex={-1}
-      className="relative flex h-full w-full max-w-md animate-[drawer-in_280ms_var(--ease-drawer)] flex-col overflow-y-auto overscroll-contain border-l border-white/70 bg-white/80 shadow-2xl backdrop-blur-2xl backdrop-saturate-150 outline-none motion-reduce:animate-[fade-in_150ms_ease-out]"
+      className="relative flex h-full w-full max-w-md animate-[drawer-in_280ms_var(--ease-drawer)] flex-col overflow-y-auto overscroll-contain border-l border-edge/70 bg-surface/80 shadow-2xl backdrop-blur-2xl backdrop-saturate-150 outline-none motion-reduce:animate-[fade-in_150ms_ease-out]"
     >
       {children}
     </aside>

@@ -95,7 +95,7 @@ export function ServiceItem({ service }: { service: Service }) {
   const [deleteState, deleteAction] = useActionState(deleteService, undefined);
 
   return (
-    <details className="group transition-colors open:bg-white/70">
+    <details className="group transition-colors open:bg-surface/70">
       {/* Table-like row: name | duration | price | action, columns aligned across rows */}
       <summary className="panel-row grid cursor-pointer list-none grid-cols-[1fr_auto] items-center gap-x-4 gap-y-0.5 sm:grid-cols-[1fr_6rem_6rem_4.5rem] [&::-webkit-details-marker]:hidden">
         <div className="min-w-0">

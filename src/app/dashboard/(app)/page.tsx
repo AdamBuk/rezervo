@@ -140,7 +140,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
               key={v}
               href={href({ view: v, booking: null })}
               aria-current={view === v ? "page" : undefined}
-              className={`rounded-lg px-3 py-1 font-medium transition-[color,background-color,box-shadow] duration-200 ${view === v ? "bg-white text-brand-800 shadow-(--shadow-glass)" : "text-stone-600 hover:bg-white/60"}`}
+              className={`rounded-lg px-3 py-1 font-medium transition-[color,background-color,box-shadow] duration-200 ${view === v ? "bg-surface text-brand-800 shadow-(--shadow-glass)" : "text-stone-600 hover:bg-surface/60"}`}
             >
               {v === "day" ? "Den" : "Týden"}
             </Link>

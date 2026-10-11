@@ -186,7 +186,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
                 className={`flex items-center justify-between gap-3 rounded-xl border px-3.5 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.98] motion-reduce:active:scale-100 ${
                   selected
                     ? "border-brand-600 bg-brand-50/90 shadow-(--shadow-glass) ring-1 ring-brand-600"
-                    : "border-white/80 bg-white/55 hover:border-brand-200 hover:bg-white/90 hover:shadow-xs"
+                    : "border-edge/80 bg-surface/55 hover:border-brand-200 hover:bg-surface/90 hover:shadow-xs"
                 }`}
               >
                 <span className="min-w-0">
@@ -253,10 +253,10 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
                 onClick={() => goToDate(d)}
                 className={`rounded-lg border px-1 py-2 text-center text-sm transition-[color,background-color,border-color,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 enabled:active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${
                   selected
-                    ? "border-brand-700 bg-brand-700 text-white"
+                    ? "border-accent-strong bg-accent-strong text-white"
                     : closed
                       ? "cursor-not-allowed border-transparent bg-stone-100/50 text-stone-300"
-                      : "border-white/80 bg-white/55 hover:border-brand-300 hover:bg-white"
+                      : "border-edge/80 bg-surface/55 hover:border-brand-300 hover:bg-surface"
                 }`}
               >
                 <span className="block text-xs font-medium uppercase">{weekday.short}</span>
@@ -272,7 +272,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
           {!service ? null : !current ? (
             <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-7" aria-label="Načítám volné termíny">
               {Array.from({ length: 7 }, (_, i) => (
-                <div key={i} className="h-9 animate-pulse rounded-lg bg-white/60" />
+                <div key={i} className="h-9 animate-pulse rounded-lg bg-surface/60" />
               ))}
             </div>
           ) : "failed" in current ? (
@@ -283,7 +283,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
               </button>
             </p>
           ) : current.slots.length === 0 ? (
-            <div className="rounded-xl border border-white/70 bg-white/50 px-4 py-3 text-sm text-stone-600">
+            <div className="rounded-xl border border-edge/70 bg-surface/50 px-4 py-3 text-sm text-stone-600">
               <p>V tento den už nejsou volné termíny.</p>
               {current.nextAvailable ? (
                 <button
@@ -311,8 +311,8 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
                   }}
                   className={`rounded-lg border py-2 text-sm font-medium tabular-nums transition-[color,background-color,border-color,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${
                     s === slot
-                      ? "border-brand-700 bg-brand-700 text-white shadow-(--shadow-brand)"
-                      : "border-white/80 bg-white/60 hover:border-brand-300 hover:bg-white"
+                      ? "border-accent-strong bg-accent-strong text-white shadow-(--shadow-brand)"
+                      : "border-edge/80 bg-surface/60 hover:border-brand-300 hover:bg-surface"
                   }`}
                 >
                   {formatTime(s, business.timezone)}
@@ -432,7 +432,7 @@ function StepTitle({ id, n, done, children }: { id: string; n: number; done: boo
     <h2 id={id} className="flex items-center gap-3 text-lg font-semibold">
       <span
         className={`grid size-7 place-items-center rounded-full text-sm font-bold transition-colors ${
-          done ? "bg-brand-700 text-white" : "bg-brand-100 text-brand-800"
+          done ? "bg-accent-strong text-white" : "bg-brand-100 text-brand-800"
         }`}
         aria-hidden
       >

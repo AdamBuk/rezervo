@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Class-based dark mode: `.dark` on <html> is set before paint by the inline script in the root layout. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 
@@ -20,6 +23,17 @@
   --color-sand-100: #f3efe8;
   --color-sand-200: #e6dfd3;
 
+  /* Semantic surfaces: remapped in dark mode, so components never hardcode white */
+  --color-surface: #ffffff;
+  --color-edge: #ffffff;
+
+  /* Solid accent fills behind white text: constant in both themes (the brand scale is remapped for text in dark) */
+  --color-accent: #1b8173;
+  --color-accent-strong: #19675e;
+  --color-accent-deep: #18534d;
+  --color-danger: #dc2626;
+  --color-danger-strong: #b91c1c;
+
   /* Shadows tinted with the brand's deep teal (one light source, from above) */
   --shadow-glass:
     inset 0 1px 0 0 rgb(255 255 255 / 0.75), 0 1px 2px -1px rgb(7 40 38 / 0.08), 0 10px 30px -14px rgb(7 40 38 / 0.22);
@@ -30,6 +44,61 @@
   /* Motion: strong custom curves (built-in ease-out is too weak to feel intentional) */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/*
+ * Dark theme: a warm teal-charcoal, never pure black. Neutral and tint scales are inverted
+ * so existing utilities (text-stone-900, bg-brand-50, …) read correctly without per-class dark: variants.
+ */
+.dark {
+  color-scheme: dark;
+
+  --color-surface: #18201f;
+  --color-edge: rgb(255 255 255 / 0.1);
+
+  --color-sand-50: #0c1211;
+  --color-sand-100: #121918;
+  --color-sand-200: #1b2422;
+
+  --color-stone-50: #1a2120;
+  --color-stone-100: #212927;
+  --color-stone-200: #2b3432;
+  --color-stone-300: #3a4442;
+  --color-stone-400: #66706e;
+  --color-stone-500: #8f9997;
+  --color-stone-600: #aab3b1;
+  --color-stone-700: #c5cccb;
+  --color-stone-800: #dce1e0;
+  --color-stone-900: #eef1f0;
+  --color-stone-950: #f7f9f8;
+
+  --color-brand-50: #0f2e2a;
+  --color-brand-100: #133832;
+  --color-brand-200: #1a4a43;
+  --color-brand-300: #23675d;
+  --color-brand-400: #34917f;
+  --color-brand-500: #45bba7;
+  --color-brand-600: #4fc4af;
+  --color-brand-700: #72d4c1;
+  --color-brand-800: #94e0d1;
+  --color-brand-900: #b6ebe0;
+  --color-brand-950: #d8f5ee;
+
+  --color-red-50: #2b1517;
+  --color-red-100: #3b1b1d;
+  --color-red-200: #552226;
+  --color-red-300: #7a2c31;
+  --color-red-700: #fca5a5;
+
+  --color-amber-50: #2a2112;
+  --color-amber-800: #fcd34d;
+  --color-amber-900: #fde68a;
+
+  --shadow-glass:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.5), 0 10px 30px -14px rgb(0 0 0 / 0.7);
+  --shadow-lifted:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.5), 0 18px 40px -18px rgb(0 0 0 / 0.8);
+  --shadow-brand: 0 1px 0 0 rgb(255 255 255 / 0.14) inset, 0 6px 18px -8px rgb(38 160 141 / 0.55);
 }
 
 html {
@@ -66,6 +135,12 @@ body::before {
     radial-gradient(40rem 32rem at 70% 108%, rgb(174 232 218 / 0.35), transparent 70%),
     radial-gradient(30rem 24rem at -4% 92%, rgb(243 239 232 / 0.95), transparent 70%);
 }
+.dark body::before {
+  background:
+    radial-gradient(42rem 30rem at 8% -6%, rgb(38 160 141 / 0.16), transparent 70%),
+    radial-gradient(36rem 28rem at 96% 4%, rgb(69 187 167 / 0.07), transparent 70%),
+    radial-gradient(40rem 32rem at 70% 108%, rgb(27 129 115 / 0.12), transparent 70%);
+}
 
 /* Fine grain breaks the digital flatness of the gradients. */
 body::after {
@@ -77,6 +152,17 @@ body::after {
   opacity: 0.05;
   mix-blend-mode: multiply;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.dark body::after {
+  opacity: 0.035;
+  mix-blend-mode: screen;
+}
+
+/* Applied for one frame while switching themes so every color snaps at once instead of easing piecemeal. */
+.theme-switching,
+.theme-switching * {
+  transition: none !important;
 }
 
 h1,
@@ -115,7 +201,7 @@ button,
 }
 
 @utility skip-link {
-  @apply pointer-events-none fixed top-3 left-3 z-50 -translate-y-20 rounded-lg bg-brand-700 px-4 py-2 text-sm font-semibold text-white opacity-0 shadow-lg transition-[transform,opacity] focus-visible:pointer-events-auto focus-visible:translate-y-0 focus-visible:opacity-100 motion-reduce:transition-none;
+  @apply pointer-events-none fixed top-3 left-3 z-50 -translate-y-20 rounded-lg bg-accent-strong px-4 py-2 text-sm font-semibold text-white opacity-0 shadow-lg transition-[transform,opacity] focus-visible:pointer-events-auto focus-visible:translate-y-0 focus-visible:opacity-100 motion-reduce:transition-none;
 }
 
 /* Motion: short, ease-out entrances */
@@ -164,26 +250,26 @@ button,
 
 /* Glass surfaces: translucent fill, blur + saturation, 1px light edge and inner highlight */
 @utility glass {
-  @apply border border-white/70 bg-white/60 shadow-(--shadow-glass) backdrop-blur-xl backdrop-saturate-150;
+  @apply border border-edge/70 bg-surface/60 shadow-(--shadow-glass) backdrop-blur-xl backdrop-saturate-150;
 
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    background-color: rgb(255 255 255 / 0.94);
+    background-color: color-mix(in oklab, var(--color-surface) 94%, transparent);
   }
   @media (prefers-reduced-transparency: reduce) {
-    background-color: rgb(255 255 255 / 0.96);
+    background-color: color-mix(in oklab, var(--color-surface) 96%, transparent);
   }
 }
 @utility glass-strong {
-  @apply border-white/80 bg-white/75 shadow-(--shadow-glass) backdrop-blur-2xl backdrop-saturate-150;
+  @apply border-edge/80 bg-surface/75 shadow-(--shadow-glass) backdrop-blur-2xl backdrop-saturate-150;
 
   @media (prefers-reduced-transparency: reduce) {
-    background-color: rgb(255 255 255 / 0.97);
+    background-color: color-mix(in oklab, var(--color-surface) 97%, transparent);
   }
 }
 
 /* Shared form controls (defined as utilities so they compose with @apply) */
 @utility input {
-  @apply block w-full rounded-lg border border-stone-300/80 bg-white/85 px-3 py-2 text-sm text-stone-900 shadow-xs transition-[border-color,box-shadow] duration-150 placeholder:text-stone-400 pointer-coarse:text-base hover:border-stone-400/80 focus:border-brand-500 focus:bg-white focus:ring-4 focus:ring-brand-500/15 focus:outline-none disabled:bg-stone-100;
+  @apply block w-full rounded-lg border border-stone-300/80 bg-surface/85 px-3 py-2 text-sm text-stone-900 shadow-xs transition-[border-color,box-shadow] duration-150 placeholder:text-stone-400 pointer-coarse:text-base hover:border-stone-400/80 focus:border-brand-500 focus:bg-surface focus:ring-4 focus:ring-brand-500/15 focus:outline-none disabled:bg-stone-100;
 }
 @utility label {
   @apply mb-1 block text-sm font-medium text-stone-700;
@@ -192,18 +278,22 @@ button,
   @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-(--ease-out) select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 motion-reduce:active:scale-100;
 }
 @utility btn-primary {
-  @apply btn bg-linear-to-b from-brand-600 to-brand-700 text-white shadow-(--shadow-brand) hover:from-brand-700 hover:to-brand-800;
+  @apply btn bg-linear-to-b from-accent to-accent-strong text-white shadow-(--shadow-brand) hover:from-accent-strong hover:to-accent-deep;
 }
 @utility btn-secondary {
-  @apply btn border border-stone-300/70 bg-white/70 text-stone-800 shadow-xs backdrop-blur hover:border-stone-400/70 hover:bg-white;
+  @apply btn border border-stone-300/70 bg-surface/70 text-stone-800 shadow-xs backdrop-blur hover:border-stone-400/70 hover:bg-surface;
 }
 @utility btn-danger {
-  @apply btn border border-red-200 bg-white/70 text-red-700 backdrop-blur hover:border-red-300 hover:bg-red-50;
+  @apply btn border border-red-200 bg-surface/70 text-red-700 backdrop-blur hover:border-red-300 hover:bg-red-50;
+}
+/* Solid destructive action (confirm step) */
+@utility btn-destructive {
+  @apply btn bg-danger text-white shadow-xs hover:bg-danger-strong;
 }
 @utility card {
   @apply glass rounded-2xl p-5;
 }
 /* Rows inside a glass panel (lists, tables) */
 @utility panel-row {
-  @apply px-4 py-3 transition-colors duration-150 hover:bg-white/60;
+  @apply px-4 py-3 transition-colors duration-150 hover:bg-surface/60;
 }
