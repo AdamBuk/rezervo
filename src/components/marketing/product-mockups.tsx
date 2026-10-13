@@ -19,7 +19,7 @@ type Appointment = { start: number; length: number; name: string; service: strin
 const WEEK: { day: string; date: string; today?: boolean; closed?: boolean; appointments: Appointment[] }[] = [
   {
     day: "Po",
-    date: "13. 10.",
+    date: "12. 10.",
     appointments: [
       { start: 0, length: 1, name: "Jana Vávrová", service: "Dámský střih", tint: "blush" },
       { start: 1.5, length: 2, name: "Blanka Šimková", service: "Barvení", tint: "brand" },
@@ -28,7 +28,7 @@ const WEEK: { day: string; date: string; today?: boolean; closed?: boolean; appo
   },
   {
     day: "Út",
-    date: "14. 10.",
+    date: "13. 10.",
     today: true,
     appointments: [
       { start: 0.5, length: 2.5, name: "Tereza Holubová", service: "Melír", tint: "brand" },
@@ -38,7 +38,7 @@ const WEEK: { day: string; date: string; today?: boolean; closed?: boolean; appo
   },
   {
     day: "St",
-    date: "15. 10.",
+    date: "14. 10.",
     appointments: [
       { start: 1, length: 1, name: "Eva Veselá", service: "Dámský střih", tint: "blush" },
       { start: 3, length: 1.5, name: "Lucie Dvořáková", service: "Společenský účes", tint: "butter" },
@@ -46,7 +46,7 @@ const WEEK: { day: string; date: string; today?: boolean; closed?: boolean; appo
   },
   {
     day: "Čt",
-    date: "16. 10.",
+    date: "15. 10.",
     appointments: [
       { start: 0, length: 0.5, name: "Ondřej Marek", service: "Pánský střih", tint: "sky" },
       { start: 1, length: 2, name: "Kateřina Procházková", service: "Barvení", tint: "brand" },
@@ -55,7 +55,7 @@ const WEEK: { day: string; date: string; today?: boolean; closed?: boolean; appo
   },
   {
     day: "Pá",
-    date: "17. 10.",
+    date: "16. 10.",
     appointments: [
       { start: 0.5, length: 1, name: "Veronika Malá", service: "Dámský střih", tint: "blush" },
       { start: 2, length: 0.5, name: "Lukáš Pospíšil", service: "Pánský střih", tint: "sky" },
@@ -64,10 +64,10 @@ const WEEK: { day: string; date: string; today?: boolean; closed?: boolean; appo
   },
   {
     day: "So",
-    date: "18. 10.",
+    date: "17. 10.",
     appointments: [{ start: 0, length: 1.5, name: "Barbora Pokorná", service: "Společenský účes", tint: "butter" }],
   },
-  { day: "Ne", date: "19. 10.", closed: true, appointments: [] },
+  { day: "Ne", date: "18. 10.", closed: true, appointments: [] },
 ];
 
 const HOURS = ["9:00", "10:00", "11:00", "12:00", "13:00", "14:00"];
@@ -83,7 +83,7 @@ export function CalendarMockup() {
         <span className="grid size-7 place-items-center rounded-full border border-edge text-xs">←</span>
         <span className="rounded-full border border-edge px-3 py-1 text-xs font-semibold">Dnes</span>
         <span className="grid size-7 place-items-center rounded-full border border-edge text-xs">→</span>
-        <span className="ml-2 font-display text-base font-bold tracking-tight">13. 10. – 19. 10.</span>
+        <span className="ml-2 font-display text-base font-bold tracking-tight">12. 10. – 18. 10.</span>
         <div className="ml-auto flex rounded-full border border-edge p-0.5 text-xs font-semibold">
           <span className="px-3 py-1 text-stone-500">Den</span>
           <span className="rounded-full bg-ink px-3 py-1 text-on-ink">Týden</span>

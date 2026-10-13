@@ -29,7 +29,7 @@ curl -H "Authorization: Bearer <API klíč>" https://rezervo.bukac-adam.workers.
 
 ![Týdenní kalendář majitele](docs/screenshots/calendar-week.jpg)
 
-<sub>Screenshoty jsou ze skutečných komponent aplikace s ukázkovými daty.</sub>
+<sub>Screenshoty jsou z produkčního nasazení s ukázkovými daty.</sub>
 
 ## Funkce
 
