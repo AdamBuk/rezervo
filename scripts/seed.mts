@@ -4,7 +4,9 @@
 //   npm run seed          (reads .env.local; needs SUPABASE_SECRET_KEY)
 //
 // Safe to run repeatedly: the demo business is recreated from scratch.
+// Also issues a public API key; set DEMO_API_KEY (rzv_live_…) to keep the same key across runs.
 
+import { createCipheriv, createHash, randomBytes } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 
 const DEMO_EMAIL = process.env.DEMO_EMAIL ?? "demo@rezervo.test";
@@ -16,6 +18,17 @@ const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const secret = process.env.SUPABASE_SECRET_KEY;
 if (!url || !secret) {
   console.error("Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY (did you create .env.local?)");
+  process.exit(1);
+}
+
+const encryptionSecret = process.env.API_KEY_ENCRYPTION_SECRET;
+if (!encryptionSecret || encryptionSecret.length < 32) {
+  console.error("Missing API_KEY_ENCRYPTION_SECRET (min. 32 chars) – needed to issue the demo API key");
+  process.exit(1);
+}
+const API_KEY_PATTERN = /^rzv_live_[A-Za-z0-9_-]{43}$/;
+if (process.env.DEMO_API_KEY && !API_KEY_PATTERN.test(process.env.DEMO_API_KEY)) {
+  console.error("DEMO_API_KEY must look like rzv_live_<43 base64url chars>");
   process.exit(1);
 }
 
@@ -127,6 +140,26 @@ async function getOrCreateDemoUser(): Promise<string> {
   throw error ?? new Error("Could not create demo user");
 }
 
+// Mirrors src/lib/api/keys.ts and key-crypto.ts (kept local so the script runs with plain `node`).
+function encryptApiKey(plaintext: string, secret: string): string {
+  const iv = randomBytes(12);
+  const cipher = createCipheriv("aes-256-gcm", createHash("sha256").update(secret, "utf8").digest(), iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  return ["v1", iv.toString("base64url"), cipher.getAuthTag().toString("base64url"), ciphertext.toString("base64url")].join(".");
+}
+
+async function createApiKey(businessId: string, secret: string): Promise<string> {
+  const key = process.env.DEMO_API_KEY ?? `rzv_live_${randomBytes(32).toString("base64url")}`;
+  const { error } = await supabase.from("api_keys").insert({
+    business_id: businessId,
+    key_hash: createHash("sha256").update(key, "utf8").digest("hex"),
+    key_prefix: key.slice(0, "rzv_live_".length + 4),
+    key_ciphertext: encryptApiKey(key, secret),
+  });
+  if (error) throw error;
+  return key;
+}
+
 async function main() {
   const ownerId = await getOrCreateDemoUser();
   console.log(`Demo user: ${DEMO_EMAIL} (${ownerId})`);
@@ -209,8 +242,11 @@ async function main() {
   const { error: bookingError } = await supabase.from("bookings").insert(bookings);
   if (bookingError) throw bookingError;
 
+  const apiKey = await createApiKey(business.id, encryptionSecret!);
+
   console.log(`Created business /${SLUG} with ${services.length} services and ${bookings.length} bookings.`);
   console.log(`Log in at /login with ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
+  console.log(`API key: ${apiKey}`);
 }
 
 main().catch((err) => {

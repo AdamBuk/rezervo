@@ -31,9 +31,14 @@ export function createSupabaseRateLimiter(): RateLimiter {
   };
 }
 
-/** Best-effort client IP from proxy headers (Vercel sets x-forwarded-for / x-real-ip); null when unknown. */
+/**
+ * Best-effort client IP; null when unknown. Cloudflare's cf-connecting-ip comes first because
+ * it can't be spoofed there (a client may prepend fake x-forwarded-for entries).
+ */
 export async function getClientIp(): Promise<string | null> {
   const h = await headers();
+  const cloudflare = h.get("cf-connecting-ip")?.trim();
+  if (cloudflare) return cloudflare;
   const forwarded = h.get("x-forwarded-for")?.split(",")[0]?.trim();
   return forwarded || h.get("x-real-ip")?.trim() || null;
 }

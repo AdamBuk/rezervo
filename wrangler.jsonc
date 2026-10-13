@@ -1,0 +1,26 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "rezervo",
+  // Wraps the OpenNext worker and adds the daily reminder cron (see custom-worker.ts).
+  "main": "custom-worker.ts",
+  "compatibility_date": "2026-10-01",
+  // nodejs_compat covers node:crypto (API keys, booking links) and AsyncLocalStorage.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  // next/image optimization (Unsplash photos on the landing page).
+  "images": {
+    "binding": "IMAGES"
+  },
+  // Replaces the Vercel cron: reminder e-mails daily at 15:00 UTC.
+  "triggers": {
+    "crons": ["0 15 * * *"]
+  },
+  "observability": {
+    "enabled": true
+  }
+  // Secrets (wrangler secret put): SUPABASE_SECRET_KEY, CRON_SECRET, API_KEY_ENCRYPTION_SECRET,
+  // RESEND_API_KEY, EMAIL_FROM, BOOKING_LINK_SECRET. NEXT_PUBLIC_* are inlined at build time.
+}

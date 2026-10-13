@@ -1,5 +1,5 @@
 // Timezone helpers built on Intl, so the app behaves the same on a UTC server
-// (Vercel) and in the browser. Dates are passed around as "YYYY-MM-DD" strings
+// (Cloudflare Workers) and in the browser. Dates are passed around as "YYYY-MM-DD" strings
 // meaning a calendar day in the business's timezone.
 
 const partsFormatterCache = new Map<string, Intl.DateTimeFormat>();

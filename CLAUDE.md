@@ -7,7 +7,7 @@ Rezervační systém pro malé podniky (kadeřnictví, fyzio, masáže).
 - Tailwind CSS
 - Supabase (PostgreSQL + přihlašování)
 - E-maily přes Resend
-- Nasazení na Vercel
+- Nasazení na Cloudflare Workers
 - **UI v češtině, kód a komentáře anglicky.**
 
 ## MVP funkce
@@ -57,3 +57,10 @@ Veřejné API pro externí aplikace (připravovaný AI asistent). Dokumentace pr
 - **Design systém (inspirace Fresha/Calendly)**: Inter + Inter Tight (nadpisy, utilita `headline`). Bílé pozadí, neutrální šedé (škála `stone` přemapovaná), primární tlačítko černá pilulka `btn-primary` (`bg-ink`), značková fialová (`brand`, plné výplně `bg-accent`/`btn-brand`) pro výběr a zvýraznění, pastelové tinty `sky/blush/sage/butter-100` (rezervace v kalendáři mají barvu podle služby). Náhledy produktu na úvodní stránce jsou v markupu (`src/components/marketing/product-mockups.tsx`) a musí odpovídat skutečné aplikaci (týdenní kalendář, žádní pracovníci). Fotky z Unsplash v `src/lib/photos.ts` přes `next/image` (`images.remotePatterns`).
 - **UI pravidla**: vstupy 16 px na dotykových zařízeních (`pointer-coarse`), destruktivní akce přes `ConfirmSubmit`, animace s `--ease-out`/`--ease-drawer` a `motion-reduce` fallbackem (fade).
 - Nové top-level routy přidat do `RESERVED_SLUGS` i do `businesses_slug_check` (migrace).
+
+## Nasazení (Cloudflare Workers)
+- Produkce: https://rezervo.bukac-adam.workers.dev, repo github.com/AdamBuk/rezervo. Deploy `npm run deploy` (OpenNext build → `scripts/cf-strip-env.mjs` → wrangler), náhled `npm run preview`.
+- `NEXT_PUBLIC_*` se vkládají při buildu – produkční `NEXT_PUBLIC_SITE_URL` je v `.env.production.local` (gitignored). Serverová tajemství jen přes `wrangler secret put`.
+- Cron připomínek: `triggers.crons` ve `wrangler.jsonc` → `custom-worker.ts` (`scheduled`) volá `/api/cron/reminders`.
+- `patches/` (patch-package): OpenNext 1.20.11 neinlinuje `preview-props.json` z Next 16.4 – po upgradu OpenNext ověřit, zda je patch ještě potřeba.
+- Klientská IP pro rate limiting: `cf-connecting-ip` má přednost.

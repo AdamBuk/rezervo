@@ -9,9 +9,14 @@
     "lint": "eslint",
     "test": "vitest run",
     "seed": "node --env-file=.env.local scripts/seed.mts",
-    "test:db": "node supabase/tests/schema.test.mjs"
+    "test:db": "node supabase/tests/schema.test.mjs",
+    "preview": "npm run build:cf && opennextjs-cloudflare preview",
+    "deploy": "npm run build:cf && opennextjs-cloudflare deploy",
+    "build:cf": "opennextjs-cloudflare build && node scripts/cf-strip-env.mjs",
+    "postinstall": "patch-package"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.11",
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.3",
     "next": "16.4.0",
@@ -28,8 +33,10 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
+    "patch-package": "^8.0.1",
     "tailwindcss": "^4",
     "typescript": "^5",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.11",
+    "wrangler": "^4.150.0"
   }
 }

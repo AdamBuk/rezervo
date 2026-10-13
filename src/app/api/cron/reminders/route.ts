@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { sendDueReminders } from "@/lib/notifications";
 
-// Called daily by Vercel Cron (see vercel.json). Vercel sends
+// Called daily by the Cloudflare Cron Trigger (wrangler.jsonc → custom-worker.ts), which sends
 // "Authorization: Bearer $CRON_SECRET" automatically when CRON_SECRET is set.
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;

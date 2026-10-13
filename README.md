@@ -2,7 +2,24 @@
 
 Rezervační systém pro kadeřnictví, fyzioterapie, masáže a podobné malé podniky. Majitel si nastaví služby a otevírací dobu, zákazníci si sami rezervují volný termín na veřejné stránce podniku a obě strany dostanou e-mail.
 
-> Portfolio projekt · Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Supabase · Resend · Vercel
+> Portfolio projekt · Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · Supabase · Resend · Cloudflare Workers
+
+## Živé demo
+
+**https://rezervo.bukac-adam.workers.dev**
+
+| | |
+| --- | --- |
+| Veřejná rezervační stránka | [/u-nuzek](https://rezervo.bukac-adam.workers.dev/u-nuzek) – fiktivní „Kadeřnictví U Nůžek“ |
+| Administrace majitele | [/login](https://rezervo.bukac-adam.workers.dev/login) – `demo@rezervo.test` / `demo-heslo-123` |
+| API klíč demo podniku | po přihlášení v [/dashboard/api](https://rezervo.bukac-adam.workers.dev/dashboard/api) |
+| REST API | `https://rezervo.bukac-adam.workers.dev/api/v1` – viz [Veřejné REST API](#veřejné-rest-api) |
+
+```bash
+curl -H "Authorization: Bearer <API klíč>" https://rezervo.bukac-adam.workers.dev/api/v1/services
+```
+
+<sub>Demo data se mohou kdykoli obnovit (`npm run seed`); testovací účet je sdílený, nevyplňujte skutečné osobní údaje.</sub>
 
 ![Úvodní stránka](docs/screenshots/landing.jpg)
 
@@ -20,7 +37,7 @@ Rezervační systém pro kadeřnictví, fyzioterapie, masáže a podobné malé 
 - **Nastavení podniku** – název, adresa stránky (`/u-nuzek`), kontakty, služby (délka, cena), otevírací doba pro každý den v týdnu, krok nabízených časů.
 - **Veřejná rezervační stránka** `/[slug]` – výběr služby → dne → volného času → kontaktní údaje.
 - **Žádné dvojité rezervace** – hlídá to přímo PostgreSQL (`EXCLUDE` constraint nad časovým rozsahem), takže to platí i pro dva zákazníky, kteří kliknou ve stejnou chvíli.
-- **E-maily** – potvrzení zákazníkovi, upozornění majiteli, připomínka den předem (Vercel Cron), oznámení o zrušení/přesunu.
+- **E-maily** – potvrzení zákazníkovi, upozornění majiteli, připomínka den předem (Cloudflare Cron Trigger), oznámení o zrušení/přesunu.
 - **Administrace** – kalendář den/týden se souhrnem (počet rezervací, očekávaná tržba, nejbližší zákazník) a čarou aktuálního času, detail rezervace, zrušení a přesun termínu.
 - **Pohodlí pro zákazníka** – automatický skok na nejbližší volný den, po rezervaci přidání do Google/Apple/Outlook kalendáře (.ics).
 - **Ochrana proti spamu** – honeypot a limit 8 rezervací za 10 minut z jedné IP adresy (sdílený Postgres rate limiter).
@@ -64,7 +81,10 @@ src/
   proxy.ts                   obnova session, ochrana /dashboard
 supabase/migrations/         SQL schéma, RLS, funkce
 supabase/tests/              test schématu v PGlite (in-memory Postgres)
-scripts/seed.mts             demo data „Kadeřnictví U Nůžek“
+scripts/seed.mts             demo data „Kadeřnictví U Nůžek“ + API klíč
+scripts/cf-strip-env.mjs     odstraní serverová tajemství z bundlu workeru
+custom-worker.ts             vstup Cloudflare Workeru (OpenNext + cron pro připomínky)
+wrangler.jsonc               konfigurace Workeru (nodejs_compat, Images, cron)
 ```
 
 ## Spuštění lokálně
@@ -91,7 +111,7 @@ Požadavky: Node.js 20+ a účet na [supabase.com](https://supabase.com) (free t
    ```bash
    npm run seed
    ```
-   Vytvoří podnik **Kadeřnictví U Nůžek** na `/u-nuzek` a účet `demo@rezervo.test` / `demo-heslo-123`.
+   Vytvoří podnik **Kadeřnictví U Nůžek** na `/u-nuzek`, účet `demo@rezervo.test` / `demo-heslo-123` a API klíč (vypíše ho; stejný klíč mezi běhy zachováte proměnnou `DEMO_API_KEY`).
 6. **Spuštění**
    ```bash
    npm run dev
@@ -122,7 +142,7 @@ API pro externí aplikace (AI asistent, vlastní web, integrace). Každý požad
 2. Klíč (`rzv_live_…`) se zobrazí hned po vygenerování a kdykoli později přes **Zobrazit klíč** (s tlačítkem Kopírovat). V administraci vidíte i datum vytvoření a posledního použití.
 3. **Vygenerovat nový klíč** okamžitě zneplatní ten starý (podnik má vždy nejvýš jeden aktivní klíč). **Zneplatnit klíč** odebere přístup bez náhrady – použijte, pokud klíč unikl.
 
-Klíč posílejte v hlavičce každého požadavku:
+Base URL demo: `https://rezervo.bukac-adam.workers.dev/api/v1`. Klíč posílejte v hlavičce každého požadavku:
 
 ```
 Authorization: Bearer rzv_live_…
@@ -274,14 +294,25 @@ Vrací `200` a rezervaci se `"status": "cancelled"`; zákazník dostane e-mail o
 3. `POST /bookings` se `starts_at` vybraného slotu. Při `409 slot_taken` načíst sloty znovu a nabídnout jiný čas.
 4. Uložit si `data.id` – stav zjistíte přes `GET /bookings/{id}`, zrušíte přes `POST /bookings/{id}/cancel`.
 
-## Nasazení na Vercel
+## Nasazení na Cloudflare Workers
 
-1. Pushněte repozitář na GitHub a v Vercelu zvolte **Add New → Project → Import**.
-2. V *Settings → Environment Variables* nastavte stejné proměnné jako v `.env.local` (včetně `API_KEY_ENCRYPTION_SECRET`)
-   (`NEXT_PUBLIC_SITE_URL` nastavte na produkční URL, např. `https://rezervo.vercel.app`).
-3. Po nasazení v Supabase (*Authentication → URL Configuration*) změňte Site URL na produkční adresu a přidejte `https://<vaše-doména>/auth/callback` do Redirect URLs.
-4. Cron pro připomínky je definovaný ve [`vercel.json`](vercel.json) (denně v 15:00 UTC = 17:00 SELČ). Vercel posílá `CRON_SECRET` automaticky.
-5. Pro e-maily na skutečné adresy ověřte v Resendu vlastní doménu a nastavte `EMAIL_FROM` (testovací `onboarding@resend.dev` doručuje jen na e-mail vašeho Resend účtu).
+Aplikace běží na Cloudflare Workers přes [`@opennextjs/cloudflare`](https://opennext.js.org/cloudflare) (`nodejs_compat` pokrývá `node:crypto` i `AsyncLocalStorage`).
+
+1. `npx wrangler login`
+2. Produkční URL pro build: vytvořte `.env.production.local` s `NEXT_PUBLIC_SITE_URL=https://<worker>.<subdoména>.workers.dev`
+   (hodnoty `NEXT_PUBLIC_*` se vkládají do bundlu při buildu).
+3. Tajemství workeru (jednorázově, hodnoty z `.env.local`):
+   ```bash
+   npx wrangler secret put SUPABASE_SECRET_KEY   # stejně CRON_SECRET, API_KEY_ENCRYPTION_SECRET,
+                                                 # EMAIL_FROM, RESEND_API_KEY, BOOKING_LINK_SECRET
+   ```
+4. `npm run deploy` (lokální náhled ve workerd: `npm run preview`).
+   Skript `scripts/cf-strip-env.mjs` po buildu odebere z bundlu vše kromě `NEXT_PUBLIC_*` – OpenNext jinak přibalí hodnoty ze všech `.env*` souborů.
+5. V Supabase (*Authentication → URL Configuration*) nastavte Site URL na produkční adresu a do Redirect URLs přidejte `https://<vaše-doména>/auth/callback`.
+6. Připomínky spouští Cron Trigger z `wrangler.jsonc` (denně v 15:00 UTC = 17:00 SELČ) – `custom-worker.ts` zavolá `/api/cron/reminders` s `CRON_SECRET`.
+7. Pro e-maily na skutečné adresy ověřte v Resendu vlastní doménu a nastavte `EMAIL_FROM` (testovací `onboarding@resend.dev` doručuje jen na e-mail vašeho Resend účtu).
+
+Poznámka: `patches/@opennextjs+cloudflare+*.patch` (aplikuje `patch-package` při `npm install`) doplňuje inlinování manifestu `preview-props.json`, který Next.js 16.4 načítá a OpenNext 1.20 zatím nezná.
 
 ## Omezení MVP a možná rozšíření
 
