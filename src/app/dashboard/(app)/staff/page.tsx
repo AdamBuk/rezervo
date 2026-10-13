@@ -9,10 +9,10 @@ export default async function StaffPage() {
   const business = await requireBusiness();
   const supabase = await createClient();
 
-  const [{ data: staff }, { data: services }, { data: upcoming }] = await Promise.all([
+  const [{ data: staff }, { data: services }, { data: upcoming }, { data: openingHours }] = await Promise.all([
     supabase
       .from("staff")
-      .select("*, staff_services(service_id)")
+      .select("*, staff_services(service_id), staff_hours(weekday, opens_at, closes_at)")
       .eq("business_id", business.id)
       .order("sort_order")
       .order("created_at"),
@@ -28,6 +28,7 @@ export default async function StaffPage() {
       .eq("business_id", business.id)
       .eq("status", "confirmed")
       .gte("starts_at", new Date().toISOString()),
+    supabase.from("opening_hours").select("weekday, opens_at, closes_at").eq("business_id", business.id),
   ]);
 
   const members = staff ?? [];
@@ -57,6 +58,8 @@ export default async function StaffPage() {
                 member={member}
                 services={serviceOptions}
                 serviceIds={member.staff_services.map((l) => l.service_id)}
+                staffHours={member.staff_hours}
+                openingHours={openingHours ?? []}
                 bookingCount={bookingCount(member.id)}
               />
             </li>

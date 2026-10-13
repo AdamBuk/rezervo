@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { createPublicClient } from "@/lib/supabase/public";
-import { computeStaffSlots, findNextAvailableDate, groupBusyByStaff, isClosedOn } from "@/lib/slots";
+import { computeStaffSlots, findNextAvailableDate, groupBusyByStaff, isClosedOn, staffSchedule, type StaffSchedule } from "@/lib/slots";
 import { addDays, isoWeekday, isValidDateString, todayInTimeZone, zonedTimeToUtc } from "@/lib/time";
 import { BOOKING_HORIZON_DAYS, MIN_NOTICE_MINUTES } from "@/lib/constants";
 
@@ -34,7 +34,7 @@ export const getPublicBusiness = cache(async (slug: string) => {
       .limit(50),
     supabase
       .from("staff")
-      .select("id, name")
+      .select("id, name, uses_business_hours, staff_hours(weekday, opens_at, closes_at)")
       .eq("business_id", business.id)
       .eq("is_active", true)
       .order("sort_order")
@@ -43,7 +43,11 @@ export const getPublicBusiness = cache(async (slug: string) => {
     supabase.from("staff_services").select("staff_id, service_id, staff!inner(business_id)").eq("staff.business_id", business.id),
   ]);
 
-  const activeStaff = staff ?? [];
+  const activeStaff = (staff ?? []).map((m) => ({ id: m.id, name: m.name }));
+  // Server-only: who works when (undefined = whenever the business is open).
+  const schedules: Record<string, StaffSchedule | undefined> = Object.fromEntries(
+    (staff ?? []).map((m) => [m.id, staffSchedule(m.uses_business_hours, m.staff_hours)]),
+  );
   const links = staffServices ?? [];
   // Active staff per service, in sort order – the same order create_booking() assigns "anyone" in.
   const staffByService: Record<string, string[]> = {};
@@ -61,6 +65,7 @@ export const getPublicBusiness = cache(async (slug: string) => {
     closures: closures ?? [],
     staff: activeStaff,
     staffByService,
+    schedules,
   };
 });
 
@@ -89,7 +94,7 @@ export async function getAvailability(
   const data = await getPublicBusiness(slug);
   if (!data || !isValidDateString(date)) return null;
 
-  const { business, services, hours, closures, staffByService } = data;
+  const { business, services, hours, closures, staffByService, schedules } = data;
   const service = services.find((s) => s.id === serviceId);
   if (!service) return null;
   const eligible = staffByService[service.id].filter((id) => staffId === null || id === staffId);
@@ -107,7 +112,10 @@ export async function getAvailability(
       p_to: zonedTimeToUtc(addDays(toDay, 1), 0, business.timezone).toISOString(),
     });
     if (error) throw error;
-    return groupBusyByStaff(eligible, busy ?? []);
+    return groupBusyByStaff(
+      eligible.map((id) => ({ id, schedule: schedules[id] })),
+      busy ?? [],
+    );
   };
 
   const base = {

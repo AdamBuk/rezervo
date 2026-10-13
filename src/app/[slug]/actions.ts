@@ -38,6 +38,7 @@ const DB_ERRORS: Record<string, string> = {
   slot_misaligned: "Vybraný čas není platný. Obnovte stránku a zkuste to znovu.",
   service_not_found: "Vybraná služba už není k dispozici.",
   staff_not_found: "Vybraný pracovník tuto službu už nenabízí. Vyberte prosím jiného.",
+  outside_staff_hours: "V tento čas vybraný pracovník nepracuje. Vyberte prosím jiný čas.",
   business_not_found: "Podnik nebyl nalezen.",
 };
 

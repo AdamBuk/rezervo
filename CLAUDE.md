@@ -63,7 +63,8 @@ Veřejné API pro externí aplikace (připravovaný AI asistent). Dokumentace pr
 - `create_booking(…, p_staff_id default null)` – null = „Kdokoli“ (první volný v pořadí `sort_order, created_at, id`). Obsazenost: `get_staff_busy_intervals()`; volné časy: `computeStaffSlots()` / `groupBusyByStaff()` v `src/lib/slots.ts`.
 - UI: `/dashboard/staff` (Tým), výběr pracovníka na rezervační stránce jen při ≥ 2 pracovnících dané služby, kalendář – denní pohled sloupce po pracovnících, filtr `?staff=`, překryvy přes `layoutLanes()` (`src/lib/calendar-layout.ts`). E-maily uvádějí pracovníka jen u týmu.
 - API: `GET /staff`, `staff_id` v `/slots` i `POST /bookings`, `staff` v rezervaci, `staff_ids` u služeb a slotů.
-- Plánováno: pracovní doba pro každého pracovníka zvlášť (teď platí otevírací doba podniku), tarify (Zdarma / Pro 249 Kč), Stripe.
+- Pracovní doba pracovníka (migrace `…_staff_hours.sql`): `staff.uses_business_hours` + `staff_hours` (směny po dnech, vždy v rámci otevírací doby; chybějící den = volno). `create_booking()` → `outside_staff_hours`. V TS `StaffSchedule`/`staffSchedule()`, `computeAvailableSlots({ within })` – sloty zarovnané od otevírací doby podniku (stejně jako DB).
+- Plánováno: dovolená jednotlivých pracovníků, tarify (Zdarma / Pro 249 Kč), Stripe.
 
 ## Nasazení (Cloudflare Workers)
 - Produkce: https://rezervo.bukac-adam.workers.dev, repo github.com/AdamBuk/rezervo. Deploy `npm run deploy` (OpenNext build → `scripts/cf-strip-env.mjs` → wrangler), náhled `npm run preview`.

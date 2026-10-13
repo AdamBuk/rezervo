@@ -74,7 +74,7 @@ export async function rescheduleBooking(_prev: ActionState, formData: FormData):
   }
 
   // Check against opening hours and other bookings (excluding this one).
-  const [{ data: regularOpening }, { data: others }, { data: closure }] = await Promise.all([
+  const [{ data: regularOpening }, { data: others }, { data: shift }, { data: closure }] = await Promise.all([
     supabase
       .from("opening_hours")
       .select("opens_at, closes_at")
@@ -90,6 +90,7 @@ export async function rescheduleBooking(_prev: ActionState, formData: FormData):
       .neq("id", id)
       .lt("starts_at", zonedTimeToUtc(addDays(date, 1), 0, business.timezone).toISOString())
       .gt("ends_at", zonedTimeToUtc(date, 0, business.timezone).toISOString()),
+    supabase.from("staff").select("uses_business_hours, staff_hours(weekday, opens_at, closes_at)").eq("id", staffId).maybeSingle(),
     supabase
       .from("closures")
       .select("id")
@@ -102,6 +103,11 @@ export async function rescheduleBooking(_prev: ActionState, formData: FormData):
   if (closure) return { error: "V tento den máte nastavené zavřeno (dovolená). Vyberte jiný den." };
   const opening = regularOpening;
 
+  // A staff member with an own schedule only works their shift on that day.
+  const workingWindow =
+    shift && !shift.uses_business_hours ? (shift.staff_hours.find((h) => h.weekday === isoWeekday(date)) ?? null) : undefined;
+  if (workingWindow === null) return { error: "Pracovník v tento den nepracuje. Vyberte jiný den nebo pracovníka." };
+
   const duration = booking.services.duration_minutes;
   const available = computeAvailableSlots({
     date,
@@ -111,6 +117,7 @@ export async function rescheduleBooking(_prev: ActionState, formData: FormData):
     stepMinutes: 5,
     busy: (others ?? []).map((b) => ({ start: new Date(b.starts_at), end: new Date(b.ends_at) })),
     now: new Date(),
+    within: workingWindow,
   });
 
   if (!available.some((s) => s.getTime() === startsAt.getTime())) {

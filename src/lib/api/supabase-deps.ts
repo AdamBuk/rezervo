@@ -5,7 +5,7 @@ import { getSiteUrl } from "@/lib/site-url";
 import { notifyBookingCancelled, notifyBookingCreated } from "@/lib/notifications";
 import { apiError } from "./responses";
 import { createSupabaseRateLimiter } from "@/lib/rate-limit";
-import { groupBusyByStaff } from "@/lib/slots";
+import { groupBusyByStaff, staffSchedule } from "@/lib/slots";
 import { createApiHandlers, type ApiDeps, type ApiHandlers, type ApiStore } from "./handlers";
 
 // The API authenticates with its own keys, not Supabase sessions, so it uses the
@@ -94,24 +94,29 @@ function createSupabaseStore(): ApiStore {
     async listStaff(businessId) {
       const { data, error } = await admin()
         .from("staff")
-        .select("id, name, staff_services(service_id)")
+        .select("id, name, uses_business_hours, staff_services(service_id), staff_hours(weekday, opens_at, closes_at)")
         .eq("business_id", businessId)
         .eq("is_active", true)
         .order("sort_order")
         .order("created_at")
         .order("id");
       if (error) throw error;
-      return (data ?? []).map((m) => ({ id: m.id, name: m.name, service_ids: m.staff_services.map((l) => l.service_id) }));
+      return (data ?? []).map((m) => ({
+        id: m.id,
+        name: m.name,
+        service_ids: m.staff_services.map((l) => l.service_id),
+        schedule: staffSchedule(m.uses_business_hours, m.staff_hours),
+      }));
     },
 
-    async getStaffBusy(businessId, staffIds, from, to) {
+    async getStaffBusy(businessId, staff, from, to) {
       const { data, error } = await admin().rpc("get_staff_busy_intervals", {
         p_business_id: businessId,
         p_from: from.toISOString(),
         p_to: to.toISOString(),
       });
       if (error) throw error;
-      return groupBusyByStaff(staffIds, data ?? []);
+      return groupBusyByStaff(staff, data ?? []);
     },
 
     async createBooking({ businessId, serviceId, staffId, startsAt, customer }) {

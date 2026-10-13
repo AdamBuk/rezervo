@@ -19,6 +19,7 @@ export type ApiErrorCode =
   | "outside_opening_hours"
   | "business_closed"
   | "slot_misaligned"
+  | "outside_staff_hours"
   | "slot_taken"
   | "booking_already_cancelled"
   | "booking_in_past"

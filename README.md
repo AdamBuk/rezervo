@@ -35,7 +35,7 @@ curl -H "Authorization: Bearer <API klíč>" https://rezervo.bukac-adam.workers.
 
 - **Registrace a přihlášení majitele** (Supabase Auth, e-mail + heslo, potvrzení e-mailu).
 - **Nastavení podniku** – název, adresa stránky (`/u-nuzek`), kontakty, služby (délka, cena), otevírací doba pro každý den v týdnu, krok nabízených časů.
-- **Tým** – každý pracovník má vlastní kalendář a seznam služeb, které dělá. Ve stejný čas lze přijmout tolik rezervací, kolik je volných pracovníků. Zákazník si vybere konkrétního pracovníka, nebo „Kdokoli“ (přidělí se první volný). Podnik s jedním pracovníkem výběr vůbec nevidí.
+- **Tým** – každý pracovník má vlastní kalendář, seznam služeb, které dělá, a pracovní dobu (celá otevírací doba podniku, nebo vlastní směny po dnech). Ve stejný čas lze přijmout tolik rezervací, kolik je volných pracovníků. Zákazník si vybere konkrétního pracovníka, nebo „Kdokoli“ (přidělí se první volný). Podnik s jedním pracovníkem výběr vůbec nevidí.
 - **Veřejná rezervační stránka** `/[slug]` – výběr služby → (pracovníka) → dne → volného času → kontaktní údaje.
 - **Žádné dvojité rezervace** – hlídá to přímo PostgreSQL (`EXCLUDE` constraint nad časovým rozsahem pro každého pracovníka), takže to platí i pro dva zákazníky, kteří kliknou ve stejnou chvíli.
 - **E-maily** – potvrzení zákazníkovi, upozornění majiteli, připomínka den předem (Cloudflare Cron Trigger), oznámení o zrušení/přesunu.
@@ -100,7 +100,7 @@ Požadavky: Node.js 20+ a účet na [supabase.com](https://supabase.com) (free t
    ```
 2. **Supabase projekt** – vytvořte nový projekt a v **SQL Editoru** spusťte postupně všechny soubory ze
    [`supabase/migrations/`](supabase/migrations/) v pořadí podle názvu
-   (`…_initial_schema.sql`, `…_public_api.sql`, `…_reserved_slugs.sql`, `…_closures.sql`, `…_staff.sql`),
+   (`…_initial_schema.sql`, `…_public_api.sql`, `…_reserved_slugs.sql`, `…_closures.sql`, `…_staff.sql`, `…_staff_hours.sql`),
    případně `npx supabase link` + `npx supabase db push`.
 3. **Proměnné prostředí** – zkopírujte `.env.example` do `.env.local` a doplňte:
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` – *Project Settings → API Keys* (secret key je nutný pro e-maily, připomínky, seed a veřejné API)
@@ -181,10 +181,15 @@ curl https://<doména>/api/v1/staff -H "Authorization: Bearer $REZERVO_API_KEY"
 ```
 
 ```json
-{ "data": [{ "id": "7a1e…", "name": "Jana", "service_ids": ["5b0c6f8e-…"] }] }
+{
+  "data": [
+    { "id": "7a1e…", "name": "Jana", "service_ids": ["5b0c6f8e-…"], "working_hours": null },
+    { "id": "c03b…", "name": "Tomáš", "service_ids": ["5b0c6f8e-…"], "working_hours": [{ "weekday": 3, "opens_at": "12:00", "closes_at": "19:00" }] }
+  ]
+}
 ```
 
-Aktivní pracovníci v pořadí, ve kterém se přidělují rezervace „Kdokoli“, a služby, které dělají.
+Aktivní pracovníci v pořadí, ve kterém se přidělují rezervace „Kdokoli“, služby, které dělají, a pracovní doba (`null` = celá otevírací doba podniku, jinak směny po dnech v týdnu, `weekday` 1 = pondělí; chybějící den = volno).
 
 #### `GET /services` – seznam služeb
 
@@ -301,6 +306,7 @@ Vrací `200` a rezervaci se `"status": "cancelled"`; zákazník dostane e-mail o
 | 422 | `date_out_of_range` | Datum je mimo rezervační okno (dnes až +60 dní) |
 | 422 | `outside_opening_hours` | Služba se nevejde do otevírací doby |
 | 422 | `business_closed` | Podnik má v tento den zavřeno (dovolená, svátek) |
+| 422 | `outside_staff_hours` | V tento čas nepracuje žádný vhodný pracovník (nebo ten zvolený) |
 | 422 | `slot_misaligned` | Čas neodpovídá nabízeným slotům (krok podniku) |
 | 429 | `rate_limited` | Překročený limit, viz `Retry-After` |
 | 500 | `internal_error` | Chyba na straně serveru (detaily jen v logu) |

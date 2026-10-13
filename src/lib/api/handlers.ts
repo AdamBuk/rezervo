@@ -2,7 +2,7 @@
 // through `ApiDeps`, so the route files wire in Supabase and tests use fakes.
 
 import { BOOKING_HORIZON_DAYS, MIN_NOTICE_MINUTES } from "@/lib/constants";
-import { computeStaffSlots, type StaffBusy } from "@/lib/slots";
+import { computeStaffSlots, type StaffBusy, type StaffSchedule } from "@/lib/slots";
 import { addDays, isoWeekday, minutesToTime, todayInTimeZone, toZoned, zonedTimeToUtc } from "@/lib/time";
 import { hashApiKey, isWellFormedApiKey, parseBearer } from "./keys";
 import { apiError, apiJson } from "./responses";
@@ -16,8 +16,8 @@ export type ApiService = {
   duration_minutes: number;
   price_czk: number;
 };
-/** Active staff member with the services they perform. */
-export type ApiStaff = { id: string; name: string; service_ids: string[] };
+/** Active staff member with the services they perform and their own schedule (undefined = opening hours). */
+export type ApiStaff = { id: string; name: string; service_ids: string[]; schedule?: StaffSchedule };
 export type ApiBookingRecord = {
   id: string;
   status: "confirmed" | "cancelled";
@@ -46,7 +46,7 @@ export interface ApiStore {
   /** Active staff in sort order (the order create_booking() assigns "anyone" in). */
   listStaff(businessId: string): Promise<ApiStaff[]>;
   /** Confirmed bookings overlapping [from, to), per staff member. */
-  getStaffBusy(businessId: string, staffIds: string[], from: Date, to: Date): Promise<StaffBusy[]>;
+  getStaffBusy(businessId: string, staff: readonly ApiStaff[], from: Date, to: Date): Promise<StaffBusy[]>;
   /** Atomic booking via create_booking(); `code` is its error (slot_taken, …). Null staffId = anyone. */
   createBooking(input: {
     businessId: string;
@@ -96,6 +96,11 @@ const BOOKING_ERRORS: Record<string, { status: number; code: Parameters<typeof a
   business_closed: { status: 422, code: "business_closed", message: "The business is closed on this day (holiday)." },
   slot_misaligned: { status: 422, code: "slot_misaligned", message: "Start time isn't one of the offered slot times." },
   service_not_found: { status: 404, code: "service_not_found", message: "Service not found or not active." },
+  outside_staff_hours: {
+    status: 422,
+    code: "outside_staff_hours",
+    message: "No suitable staff member works at this time (or the requested one doesn't).",
+  },
   staff_not_found: {
     status: 404,
     code: "staff_not_found",
@@ -218,7 +223,21 @@ export function createApiHandlers(deps: ApiDeps) {
   function listStaff(request: Request) {
     return withApi(request, "read", async ({ business }) => {
       const staff = await store.listStaff(business.id);
-      return apiJson({ data: staff.map((m) => ({ id: m.id, name: m.name, service_ids: m.service_ids })) });
+      return apiJson({
+        data: staff.map((m) => ({
+          id: m.id,
+          name: m.name,
+          service_ids: m.service_ids,
+          // null = works whenever the business is open
+          working_hours: m.schedule
+            ? Object.entries(m.schedule).map(([weekday, h]) => ({
+                weekday: Number(weekday),
+                opens_at: h!.opens_at.slice(0, 5),
+                closes_at: h!.closes_at.slice(0, 5),
+              }))
+            : null,
+        })),
+      });
     });
   }
 
@@ -255,7 +274,7 @@ export function createApiHandlers(deps: ApiDeps) {
       const staffBusy = opening
         ? await store.getStaffBusy(
             business.id,
-            eligible.map((m) => m.id),
+            eligible,
             zonedTimeToUtc(date, 0, business.timezone),
             zonedTimeToUtc(addDays(date, 1), 0, business.timezone),
           )

@@ -22,6 +22,8 @@ export type CalendarColumn = {
   badge?: string;
   href?: string;
   highlight: boolean;
+  /** Working window shown as open (a staff member's shift); undefined = opening hours, null = day off */
+  opening?: { opens_at: string; closes_at: string } | null;
   /** Bookings belonging to this column */
   match: (booking: CalendarBooking) => boolean;
 };
@@ -121,7 +123,8 @@ export function CalendarGrid({ columns, timeZone, bookings, hours, now, bookingH
           </div>
 
           {columns.map((c) => {
-            const opening = hours.find((h) => h.weekday === isoWeekday(c.date));
+            const businessOpening = hours.find((h) => h.weekday === isoWeekday(c.date)) ?? null;
+            const opening = c.opening === undefined ? businessOpening : businessOpening && c.opening;
             const openTop = opening ? (timeToMinutes(opening.opens_at) - gridStart) * PX_PER_MIN : 0;
             const openHeight = opening ? (timeToMinutes(opening.closes_at) - timeToMinutes(opening.opens_at)) * PX_PER_MIN : 0;
             const columnBookings = layoutLanes(placed.filter((b) => b.date === c.date && c.match(b)));

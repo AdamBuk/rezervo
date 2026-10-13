@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeAvailableSlots, computeStaffSlots, findNextAvailableDate, groupBusyByStaff, isClosedOn } from "./slots";
+import { computeAvailableSlots, computeStaffSlots, findNextAvailableDate, groupBusyByStaff, isClosedOn, staffSchedule } from "./slots";
 import { addDays, isoWeekday, startOfWeek, toZoned, zonedTimeToUtc } from "./time";
 
 const TZ = "Europe/Prague";
@@ -176,10 +176,47 @@ describe("groupBusyByStaff", () => {
       { staff_id: "a", starts_at: "2026-10-19T08:00:00Z", ends_at: "2026-10-19T09:00:00Z" },
       { staff_id: "x", starts_at: "2026-10-19T08:00:00Z", ends_at: "2026-10-19T09:00:00Z" },
     ];
-    const grouped = groupBusyByStaff(["a", "b"], rows);
+    const grouped = groupBusyByStaff([{ id: "a" }, { id: "b" }], rows);
     expect(grouped.map((g) => [g.staffId, g.busy.length])).toEqual([
       ["a", 1],
       ["b", 0],
     ]);
+  });
+});
+
+describe("staff schedules", () => {
+  const day = "2026-10-19"; // Monday
+  const base = {
+    date: day,
+    timeZone: TZ,
+    opening: { opens_at: "09:00:00", closes_at: "13:00:00" },
+    durationMinutes: 60,
+    stepMinutes: 30,
+    now: new Date("2026-10-01T00:00:00Z"),
+  };
+
+  it("limits a staff member to their shift, aligned to opening time", () => {
+    const schedule = staffSchedule(false, [{ weekday: 1, opens_at: "10:15:00", closes_at: "12:30:00" }]);
+    const slots = computeStaffSlots({ ...base, staff: [{ staffId: "eva", busy: [], schedule }] });
+    expect(slots.map((s) => hhmm(s.start))).toEqual(["10:30", "11:00", "11:30"]);
+  });
+
+  it("skips staff on their day off and keeps business-hours staff", () => {
+    const off = staffSchedule(false, [{ weekday: 2, opens_at: "09:00:00", closes_at: "13:00:00" }]);
+    const slots = computeStaffSlots({
+      ...base,
+      staff: [
+        { staffId: "eva", busy: [], schedule: off },
+        { staffId: "ota", busy: [], schedule: staffSchedule(true, []) },
+      ],
+    });
+    expect(slots).toHaveLength(7);
+    expect(slots.every((s) => s.staffIds.join() === "ota")).toBe(true);
+  });
+
+  it("never extends past opening hours", () => {
+    const late = staffSchedule(false, [{ weekday: 1, opens_at: "12:00:00", closes_at: "18:00:00" }]);
+    const slots = computeStaffSlots({ ...base, staff: [{ staffId: "eva", busy: [], schedule: late }] });
+    expect(slots.map((s) => hhmm(s.start))).toEqual(["12:00"]);
   });
 });

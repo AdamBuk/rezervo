@@ -61,7 +61,12 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
     bookingsQuery,
     supabase.from("opening_hours").select("weekday, opens_at, closes_at").eq("business_id", business.id),
     upcomingQuery.order("starts_at").limit(1).maybeSingle(),
-    supabase.from("staff").select("id, name, is_active").eq("business_id", business.id).order("sort_order").order("created_at"),
+    supabase
+      .from("staff")
+      .select("id, name, is_active, uses_business_hours, staff_hours(weekday, opens_at, closes_at)")
+      .eq("business_id", business.id)
+      .order("sort_order")
+      .order("created_at"),
   ]);
 
   const allStaff = staff ?? [];
@@ -71,6 +76,12 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
     (m) => (staffFilter === null || m.id === staffFilter) && (m.is_active || (bookings ?? []).some((b) => b.staff_id === m.id)),
   );
   const isTeam = allStaff.filter((m) => m.is_active).length > 1;
+  /** A staff member's shift on a day: undefined = opening hours, null = day off */
+  const shiftOf = (staffId: string | null, date: string) => {
+    const member = staffId ? allStaff.find((m) => m.id === staffId) : undefined;
+    if (!member || member.uses_business_hours) return undefined;
+    return member.staff_hours.find((h) => h.weekday === isoWeekday(date)) ?? null;
+  };
 
   const href = (overrides: Record<string, string | null>) => {
     const sp = new URLSearchParams({ view, date: requested });
@@ -112,6 +123,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
           label: m.is_active ? m.name : `${m.name} (neaktivní)`,
           href: href({ staff: m.id, booking: null }),
           highlight: false,
+          opening: shiftOf(m.id, requested),
           match: (b) => b.staffId === m.id,
         }))
       : days.map((d) => {
@@ -124,6 +136,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
             badge: `${day}. ${month}.`,
             href: dayHref(d),
             highlight: d === today,
+            opening: shiftOf(staffFilter, d),
             match: () => true,
           };
         });

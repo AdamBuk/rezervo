@@ -44,10 +44,19 @@ const SERVICES = [
 ];
 
 // Team: who does which services (by name). Each has their own calendar.
-const STAFF: { name: string; services: string[] }[] = [
+// `hours` = own shifts by ISO weekday (within opening hours); without it the opening hours apply.
+const STAFF: { name: string; services: string[]; hours?: Record<number, [string, string]> }[] = [
   { name: "Jana", services: SERVICES.map((s) => s.name) },
-  { name: "Petra", services: ["Dámský střih", "Barvení", "Melír", "Společenský účes"] },
-  { name: "Tomáš", services: ["Pánský střih", "Dětský střih", "Dámský střih"] },
+  {
+    name: "Petra",
+    services: ["Dámský střih", "Barvení", "Melír", "Společenský účes"],
+    hours: { 1: ["09:00", "18:00"], 2: ["09:00", "18:00"], 3: ["10:00", "19:00"], 4: ["09:00", "18:00"] },
+  },
+  {
+    name: "Tomáš",
+    services: ["Pánský střih", "Dětský střih", "Dámský střih"],
+    hours: { 3: ["12:00", "19:00"], 4: ["12:00", "18:00"], 5: ["12:00", "16:00"], 6: ["09:00", "13:00"] },
+  },
 ];
 
 // ISO weekday → [opens, closes]
@@ -211,7 +220,7 @@ async function main() {
 
   const { data: staff, error: staffError } = await supabase
     .from("staff")
-    .insert(STAFF.map((m, i) => ({ business_id: business.id, name: m.name, sort_order: i })))
+    .insert(STAFF.map((m, i) => ({ business_id: business.id, name: m.name, sort_order: i, uses_business_hours: !m.hours })))
     .select("id, name");
   if (staffError) throw staffError;
 
@@ -221,6 +230,17 @@ async function main() {
   });
   const { error: linkError } = await supabase.from("staff_services").insert(staffServices);
   if (linkError) throw linkError;
+
+  const shifts = STAFF.flatMap((m) =>
+    Object.entries(m.hours ?? {}).map(([weekday, [opens_at, closes_at]]) => ({
+      staff_id: staff.find((x) => x.name === m.name)!.id,
+      weekday: Number(weekday),
+      opens_at,
+      closes_at,
+    })),
+  );
+  const { error: shiftError } = await supabase.from("staff_hours").insert(shifts);
+  if (shiftError) throw shiftError;
 
   // Bookings: from 3 days ago to 14 days ahead, filling ~55 % of each staff member's day.
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
@@ -232,8 +252,11 @@ async function main() {
 
     for (const member of staff) {
       const own = services.filter((s) => staffServices.some((l) => l.staff_id === member.id && l.service_id === s.id));
-      let cursor = toMin(hours[0]);
-      const close = toMin(hours[1]);
+      const custom = STAFF.find((m) => m.name === member.name)!.hours;
+      const shift = custom ? custom[isoWeekday(date)] : hours;
+      if (!shift) continue; // day off
+      let cursor = toMin(shift[0]);
+      const close = toMin(shift[1]);
       while (cursor < close) {
         // Leave gaps so the booking page shows free slots.
         if (rand() < 0.45) {

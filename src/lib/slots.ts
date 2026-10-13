@@ -1,4 +1,4 @@
-import { addDays, timeToMinutes, zonedTimeToUtc } from "./time";
+import { addDays, isoWeekday, timeToMinutes, zonedTimeToUtc } from "./time";
 
 export type Interval = { start: Date; end: Date };
 
@@ -15,7 +15,11 @@ export type SlotInput = {
   now: Date;
   /** Minimum notice before a slot can be booked */
   minNoticeMinutes?: number;
+  /** Narrower working window (a staff member's shift); slots stay aligned to opening time */
+  within?: OpeningInterval | null;
 };
+
+export type OpeningInterval = { opens_at: string; closes_at: string };
 
 /**
  * Start times a service can be booked at on a given day. A slot is offered when
@@ -24,11 +28,12 @@ export type SlotInput = {
  * `stepMinutes` counted from opening time – the same rule create_booking() enforces.
  */
 export function computeAvailableSlots(input: SlotInput): Date[] {
-  const { date, timeZone, opening, durationMinutes, stepMinutes, busy, now, minNoticeMinutes = 0 } = input;
+  const { date, timeZone, opening, durationMinutes, stepMinutes, busy, now, minNoticeMinutes = 0, within } = input;
   if (!opening || durationMinutes <= 0 || stepMinutes <= 0) return [];
 
   const opens = timeToMinutes(opening.opens_at);
-  const closes = timeToMinutes(opening.closes_at);
+  const closes = Math.min(timeToMinutes(opening.closes_at), within ? timeToMinutes(within.closes_at) : Infinity);
+  const earliestStart = within ? timeToMinutes(within.opens_at) : opens;
   const earliest = now.getTime() + minNoticeMinutes * 60_000;
   const slots: Date[] = [];
 
@@ -36,7 +41,7 @@ export function computeAvailableSlots(input: SlotInput): Date[] {
     const start = zonedTimeToUtc(date, minute, timeZone);
     const end = new Date(start.getTime() + durationMinutes * 60_000);
 
-    if (start.getTime() < earliest) continue;
+    if (start.getTime() < earliest || minute < earliestStart) continue;
     // Half-open intervals: a booking ending at 10:00 doesn't block a slot starting at 10:00.
     if (busy.some((b) => b.start < end && b.end > start)) continue;
 
@@ -45,8 +50,11 @@ export function computeAvailableSlots(input: SlotInput): Date[] {
   return slots;
 }
 
-/** Confirmed bookings of one staff member. */
-export type StaffBusy = { staffId: string; busy: Interval[] };
+/** Working hours by ISO weekday; a missing weekday is a day off. */
+export type StaffSchedule = Partial<Record<number, OpeningInterval>>;
+
+/** Confirmed bookings of one staff member, plus their own schedule (undefined = business opening hours). */
+export type StaffBusy = { staffId: string; busy: Interval[]; schedule?: StaffSchedule };
 
 export type StaffSlot = {
   start: Date;
@@ -63,8 +71,11 @@ export type StaffSlotInput = Omit<SlotInput, "busy"> & {
 export function computeStaffSlots(input: StaffSlotInput): StaffSlot[] {
   const { staff, ...rest } = input;
   const byStart = new Map<number, StaffSlot>();
+  const weekday = isoWeekday(rest.date);
   for (const member of staff) {
-    for (const start of computeAvailableSlots({ ...rest, busy: member.busy })) {
+    const within = member.schedule ? member.schedule[weekday] : undefined;
+    if (member.schedule && !within) continue; // day off
+    for (const start of computeAvailableSlots({ ...rest, busy: member.busy, within })) {
       const slot = byStart.get(start.getTime());
       if (slot) slot.staffIds.push(member.staffId);
       else byStart.set(start.getTime(), { start, staffIds: [member.staffId] });
@@ -73,13 +84,14 @@ export function computeStaffSlots(input: StaffSlotInput): StaffSlot[] {
   return [...byStart.values()].sort((a, b) => a.start.getTime() - b.start.getTime());
 }
 
-/** Groups busy intervals (e.g. from get_staff_busy_intervals) by staff member, keeping `staffIds` order. */
+/** Groups busy intervals (e.g. from get_staff_busy_intervals) by staff member, keeping the given order. */
 export function groupBusyByStaff(
-  staffIds: readonly string[],
+  staff: readonly { id: string; schedule?: StaffSchedule }[],
   rows: readonly { staff_id: string; starts_at: string; ends_at: string }[],
 ): StaffBusy[] {
-  return staffIds.map((staffId) => ({
+  return staff.map(({ id: staffId, schedule }) => ({
     staffId,
+    schedule,
     busy: rows
       .filter((r) => r.staff_id === staffId)
       .map((r) => ({ start: new Date(r.starts_at), end: new Date(r.ends_at) })),
@@ -108,4 +120,15 @@ export function findNextAvailableDate(input: NextAvailableInput): string | null 
     if (opening && computeStaffSlots({ ...rest, date, opening }).length > 0) return date;
   }
   return null;
+}
+
+/** Builds a schedule from staff_hours rows, or undefined when the staff member follows opening hours. */
+export function staffSchedule(
+  usesBusinessHours: boolean,
+  rows: readonly { weekday: number; opens_at: string; closes_at: string }[],
+): StaffSchedule | undefined {
+  if (usesBusinessHours) return undefined;
+  const schedule: StaffSchedule = {};
+  for (const r of rows) schedule[r.weekday] = { opens_at: r.opens_at, closes_at: r.closes_at };
+  return schedule;
 }

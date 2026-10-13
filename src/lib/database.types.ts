@@ -273,6 +273,7 @@ export type Database = {
           business_id: string;
           name: string;
           is_active: boolean;
+          uses_business_hours: boolean;
           sort_order: number;
           created_at: string;
         };
@@ -281,6 +282,7 @@ export type Database = {
           business_id: string;
           name: string;
           is_active?: boolean;
+          uses_business_hours?: boolean;
           sort_order?: number;
           created_at?: string;
         };
@@ -289,6 +291,7 @@ export type Database = {
           business_id?: string;
           name?: string;
           is_active?: boolean;
+          uses_business_hours?: boolean;
           sort_order?: number;
           created_at?: string;
         };
@@ -319,6 +322,20 @@ export type Database = {
             columns: ["service_id"];
             isOneToOne: false;
             referencedRelation: "services";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      staff_hours: {
+        Row: { staff_id: string; weekday: number; opens_at: string; closes_at: string };
+        Insert: { staff_id: string; weekday: number; opens_at: string; closes_at: string };
+        Update: { staff_id?: string; weekday?: number; opens_at?: string; closes_at?: string };
+        Relationships: [
+          {
+            foreignKeyName: "staff_hours_staff_id_fkey";
+            columns: ["staff_id"];
+            isOneToOne: false;
+            referencedRelation: "staff";
             referencedColumns: ["id"];
           },
         ];
@@ -372,3 +389,4 @@ export type Booking = Tables<"bookings">;
 export type ApiKey = Tables<"api_keys">;
 export type Closure = Tables<"closures">;
 export type Staff = Tables<"staff">;
+export type StaffHours = Tables<"staff_hours">;

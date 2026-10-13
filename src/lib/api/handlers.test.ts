@@ -96,9 +96,10 @@ function setup() {
       check();
       return businessId === BIZ.id ? f.staff : [];
     },
-    async getStaffBusy(businessId, staffIds, from, to) {
-      return staffIds.map((staffId) => ({
+    async getStaffBusy(businessId, staff, from, to) {
+      return staff.map(({ id: staffId, schedule }) => ({
         staffId,
+        schedule,
         busy: [...f.bookings.values()]
           .filter((b) => b.businessId === businessId && b.status === "confirmed" && b.staff?.id === staffId)
           .map((b) => ({ start: new Date(b.starts_at), end: new Date(b.ends_at) }))
@@ -621,8 +622,8 @@ describe("staff", () => {
     const res = await ctx.api.listStaff(req("/staff", { key: ctx.f.key }));
     expect(res.status).toBe(200);
     expect((await json(res)).data).toEqual([
-      { id: JANA, name: "Jana", service_ids: [SERVICE.id] },
-      { id: PETR, name: "Petr", service_ids: [SERVICE.id] },
+      { id: JANA, name: "Jana", service_ids: [SERVICE.id], working_hours: null },
+      { id: PETR, name: "Petr", service_ids: [SERVICE.id], working_hours: null },
     ]);
     expect((await json(await ctx.api.listStaff(req("/staff", { key: ctx.otherKey })))).data).toEqual([]);
   });
@@ -691,5 +692,37 @@ describe("staff", () => {
       req("/bookings", { method: "POST", key: ctx.f.key, body: { ...validBooking, staff_id: 42 } }),
     );
     expect(invalid.status).toBe(400);
+  });
+});
+
+describe("staff working hours", () => {
+  it("offers a staff member's slots only within their shift and lists it", async () => {
+    ctx.f.staff = [
+      {
+        id: JANA,
+        name: "Jana",
+        service_ids: [SERVICE.id],
+        schedule: { 2: { opens_at: "12:00:00", closes_at: "15:00:00" } }, // Tuesdays 12–15
+      },
+    ];
+    const { data } = await json(await ctx.api.getSlots(req(`/slots?service_id=${SERVICE.id}&date=2026-10-13`, { key: ctx.f.key })));
+    const times = (data!.slots as Array<{ local_time: string }>).map((s) => s.local_time);
+    expect(times[0]).toBe("12:00");
+    expect(times.at(-1)).toBe("14:00");
+
+    const monday = await json(await ctx.api.getSlots(req(`/slots?service_id=${SERVICE.id}&date=2026-10-19`, { key: ctx.f.key })));
+    expect(monday.data!.slots).toEqual([]);
+
+    const staff = await json(await ctx.api.listStaff(req("/staff", { key: ctx.f.key })));
+    expect((staff.data as unknown as Array<{ working_hours: unknown }>)[0].working_hours).toEqual([
+      { weekday: 2, opens_at: "12:00", closes_at: "15:00" },
+    ]);
+  });
+
+  it("maps outside_staff_hours from create_booking", async () => {
+    ctx.f.nextCreateCode = "outside_staff_hours";
+    const res = await ctx.api.createBooking(req("/bookings", { method: "POST", key: ctx.f.key, body: validBooking }));
+    expect(res.status).toBe(422);
+    expect((await json(res)).error?.code).toBe("outside_staff_hours");
   });
 });

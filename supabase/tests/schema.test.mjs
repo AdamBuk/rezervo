@@ -262,5 +262,44 @@ await expect("owner moves Petr's booking onto Jana's same slot -> overlap", () =
   "update bookings set staff_id=$1 where id=$2", [jana.id, second]), /bookings_no_overlap/);
 await db.exec("reset role");
 
+// --- Staff working hours ---------------------------------------------------
+// A fresh business: Eva works 12:00–17:00 only, Ota follows the opening hours (09–17).
+const shiftOwner = "77777777-7777-7777-7777-777777777777";
+await db.exec(`insert into auth.users values ('${shiftOwner}', 's@x.cz')`);
+const { rows: [biz3] } = await db.query(
+  `insert into businesses (owner_id,name,slug,notification_email) values ($1,'Směny','smeny-biz','s@x.cz') returning id`, [shiftOwner]);
+const { rows: [svc3] } = await db.query(
+  `insert into services (business_id,name,duration_minutes,price_czk) values ($1,'Masáž',60,800) returning id`, [biz3.id]);
+await db.query(`insert into opening_hours select $1, d, '09:00', '17:00' from generate_series(1,7) d`, [biz3.id]);
+const { rows: [eva] } = await db.query(
+  `insert into staff (business_id,name,sort_order,uses_business_hours) values ($1,'Eva',0,false) returning id`, [biz3.id]);
+const { rows: [ota] } = await db.query(
+  `insert into staff (business_id,name,sort_order) values ($1,'Ota',1) returning id`, [biz3.id]);
+await db.query(`insert into staff_services values ($1,$3),($2,$3)`, [eva.id, ota.id, svc3.id]);
+await db.query(`insert into staff_hours select $1, d, '12:00', '17:00' from generate_series(1,7) d`, [eva.id]);
+const book3 = (start, staffId = null) => db.query(
+  `select create_booking($1,$2,$3,'Jan Novák','jan@example.cz','777123456',$4) as id`, [biz3.id, svc3.id, start, staffId]);
+const staffOf3 = (id) => db.query("select staff_id from bookings where id = $1", [id]).then(r => r.rows[0].staff_id);
+
+await db.exec("set role anon");
+await expect("staff hours: Eva not working at 10:00", () => book3(at(0), eva.id), /outside_staff_hours/);
+await expect("staff hours: Eva ending after her shift rejected", () => book3(at(420), eva.id), /outside_opening_hours|outside_staff_hours/);
+const morning = await book3(at(0)).then(r => r.rows[0].id);
+const noon = await book3(at(120)).then(r => r.rows[0].id);
+await expect("staff hours: Eva books at 12:00", () => book3(at(180), eva.id).then(r => r.rows[0]));
+await expect("staff hours: Ota fully booked at 10:00 -> slot_taken, not Eva", () => book3(at(0)), /slot_taken/);
+await expect("anon reads staff hours", () => db.query("select opens_at from staff_hours where staff_id = $1", [eva.id]).then(r => r.rows.length));
+await expect("anon cannot write staff hours", () => db.query(
+  "insert into staff_hours values ($1, 1, '08:00', '09:00')", [ota.id]), /permission denied|row-level/);
+await db.exec("reset role");
+await expect("staff hours: 'anyone' at 10:00 goes to Ota (Eva off)", async () => {
+  if ((await staffOf3(morning)) !== ota.id) throw new Error("expected Ota"); return "Ota";
+});
+await expect("staff hours: 'anyone' at 12:00 goes to Eva (first in order)", async () => {
+  if ((await staffOf3(noon)) !== eva.id) throw new Error("expected Eva"); return "Eva";
+});
+await expect("staff hours: invalid range rejected", () => db.query(
+  "insert into staff_hours values ($1, 1, '12:00', '11:00')", [ota.id]), /check constraint/);
+
 console.log(failures ? `\n${failures} FAILURES` : "\nALL PASSED");
 process.exit(failures || process.exitCode ? 1 : 0);

@@ -6,6 +6,7 @@ import { FormMessage } from "@/components/form-message";
 import { ConfirmSubmit } from "@/components/confirm-submit";
 import type { Staff } from "@/lib/database.types";
 import { createStaff, deleteStaff, updateStaff } from "./actions";
+import { StaffHoursFields, type HoursRow } from "./staff-hours-fields";
 
 export type ServiceOption = { id: string; name: string; is_active: boolean };
 
@@ -66,6 +67,12 @@ function StaffFields({
   );
 }
 
+/** "Po, Út, Čt" from schedule rows */
+function workdaysLabel(rows: HoursRow[]): string {
+  const short = ["Po", "Út", "St", "Čt", "Pá", "So", "Ne"];
+  return [...rows].sort((a, b) => a.weekday - b.weekday).map((r) => short[r.weekday - 1]).join(", ") || "žádné dny";
+}
+
 export function NewStaffForm({ services }: { services: ServiceOption[] }) {
   const [state, formAction] = useActionState(createStaff, undefined);
   const formRef = useRef<HTMLFormElement>(null);
@@ -93,11 +100,15 @@ export function StaffItem({
   member,
   services,
   serviceIds,
+  staffHours,
+  openingHours,
   bookingCount,
 }: {
   member: Staff;
   services: ServiceOption[];
   serviceIds: string[];
+  staffHours: HoursRow[];
+  openingHours: HoursRow[];
   /** Upcoming confirmed bookings */
   bookingCount: number;
 }) {
@@ -128,6 +139,9 @@ export function StaffItem({
           <p className="truncate text-sm text-stone-500">
             {serviceNames.length ? serviceNames.join(", ") : "Žádné služby – zákazníci si ho nemohou vybrat"}
           </p>
+          {!member.uses_business_hours && (
+            <p className="truncate text-sm text-stone-500">Vlastní pracovní doba · {workdaysLabel(staffHours)}</p>
+          )}
         </div>
         <span className="text-right text-sm text-stone-500">
           <span className="hidden tabular-nums sm:inline">
@@ -142,6 +156,12 @@ export function StaffItem({
         <form action={updateAction} className="@container space-y-4">
           <input type="hidden" name="id" value={member.id} />
           <StaffFields idPrefix={member.id} name={member.name} services={services} checked={(id) => serviceIds.includes(id)} />
+          <StaffHoursFields
+            idPrefix={member.id}
+            usesBusinessHours={member.uses_business_hours}
+            staffHours={staffHours}
+            openingHours={openingHours}
+          />
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
