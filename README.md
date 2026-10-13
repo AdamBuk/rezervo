@@ -35,10 +35,11 @@ curl -H "Authorization: Bearer <API klíč>" https://rezervo.bukac-adam.workers.
 
 - **Registrace a přihlášení majitele** (Supabase Auth, e-mail + heslo, potvrzení e-mailu).
 - **Nastavení podniku** – název, adresa stránky (`/u-nuzek`), kontakty, služby (délka, cena), otevírací doba pro každý den v týdnu, krok nabízených časů.
-- **Veřejná rezervační stránka** `/[slug]` – výběr služby → dne → volného času → kontaktní údaje.
-- **Žádné dvojité rezervace** – hlídá to přímo PostgreSQL (`EXCLUDE` constraint nad časovým rozsahem), takže to platí i pro dva zákazníky, kteří kliknou ve stejnou chvíli.
+- **Tým** – každý pracovník má vlastní kalendář a seznam služeb, které dělá. Ve stejný čas lze přijmout tolik rezervací, kolik je volných pracovníků. Zákazník si vybere konkrétního pracovníka, nebo „Kdokoli“ (přidělí se první volný). Podnik s jedním pracovníkem výběr vůbec nevidí.
+- **Veřejná rezervační stránka** `/[slug]` – výběr služby → (pracovníka) → dne → volného času → kontaktní údaje.
+- **Žádné dvojité rezervace** – hlídá to přímo PostgreSQL (`EXCLUDE` constraint nad časovým rozsahem pro každého pracovníka), takže to platí i pro dva zákazníky, kteří kliknou ve stejnou chvíli.
 - **E-maily** – potvrzení zákazníkovi, upozornění majiteli, připomínka den předem (Cloudflare Cron Trigger), oznámení o zrušení/přesunu.
-- **Administrace** – kalendář den/týden se souhrnem (počet rezervací, očekávaná tržba, nejbližší zákazník) a čarou aktuálního času, detail rezervace, zrušení a přesun termínu.
+- **Administrace** – kalendář den/týden (v denním zobrazení sloupec pro každého pracovníka, filtr podle pracovníka, souběžné rezervace vedle sebe) se souhrnem (počet rezervací, očekávaná tržba, nejbližší zákazník) a čarou aktuálního času, detail rezervace, zrušení a přesun termínu.
 - **Pohodlí pro zákazníka** – automatický skok na nejbližší volný den, po rezervaci přidání do Google/Apple/Outlook kalendáře (.ics).
 - **Ochrana proti spamu** – honeypot a limit 8 rezervací za 10 minut z jedné IP adresy (sdílený Postgres rate limiter).
 - **Zrušení zákazníkem** – v potvrzení i připomínce je podepsaný odkaz (`/rezervace/<id>/<token>`, HMAC – nic se neukládá) na stránku, kde zákazník rezervaci zruší nejpozději 2 hodiny předem; majitel dostane e-mail.
@@ -50,9 +51,9 @@ curl -H "Authorization: Bearer <API klíč>" https://rezervo.bukac-adam.workers.
 
 | Oblast | Řešení |
 | --- | --- |
-| Integrita dat | `bookings_no_overlap` – `EXCLUDE USING gist (business_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE status = 'confirmed'`. Navazující termíny (10:00–11:00 a 11:00–12:00) jsou povolené. |
-| Vytvoření rezervace | `create_booking()` – `SECURITY DEFINER` funkce, která ověří službu, otevírací dobu, zarovnání času a vloží záznam. Anonymní uživatel nemá k tabulce `bookings` žádný přímý přístup. |
-| Obsazenost | `get_busy_intervals()` vrací jen časové intervaly, žádná osobní data zákazníků. |
+| Integrita dat | `bookings_no_overlap` – `EXCLUDE USING gist (staff_id WITH =, tstzrange(starts_at, ends_at, '[)') WITH &&) WHERE status = 'confirmed'`. Navazující termíny (10:00–11:00 a 11:00–12:00) jsou povolené; triggery hlídají, že pracovník i služba patří stejnému podniku. |
+| Vytvoření rezervace | `create_booking()` – `SECURITY DEFINER` funkce, která ověří službu, pracovníka, otevírací dobu, zarovnání času a vloží záznam. Pro „Kdokoli“ zkouší pracovníky v pořadí a o obsazenosti rozhoduje atomicky exclusion constraint. Anonymní uživatel nemá k tabulce `bookings` žádný přímý přístup. |
+| Obsazenost | `get_staff_busy_intervals()` vrací jen časové intervaly a pracovníka, žádná osobní data zákazníků. Volné časy = sjednocení volných časů pracovníků, kteří službu dělají (`computeStaffSlots()`). |
 | Row Level Security | Majitel vidí a mění jen svůj podnik a jeho rezervace; anonym vidí jen veřejné sloupce podniku (bez e-mailu majitele). |
 | Časová pásma | Vše se ukládá v UTC, sloty se počítají v časovém pásmu podniku (`Europe/Prague`) přes `Intl` – funguje i na serveru v UTC a přes přechody letního času. |
 | Výpočet slotů | Čistá funkce `computeAvailableSlots()` v [`src/lib/slots.ts`](src/lib/slots.ts), pokrytá unit testy. |
@@ -99,7 +100,7 @@ Požadavky: Node.js 20+ a účet na [supabase.com](https://supabase.com) (free t
    ```
 2. **Supabase projekt** – vytvořte nový projekt a v **SQL Editoru** spusťte postupně všechny soubory ze
    [`supabase/migrations/`](supabase/migrations/) v pořadí podle názvu
-   (`…_initial_schema.sql`, `…_public_api.sql`, `…_reserved_slugs.sql`, `…_closures.sql`),
+   (`…_initial_schema.sql`, `…_public_api.sql`, `…_reserved_slugs.sql`, `…_closures.sql`, `…_staff.sql`),
    případně `npx supabase link` + `npx supabase db push`.
 3. **Proměnné prostředí** – zkopírujte `.env.example` do `.env.local` a doplňte:
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` – *Project Settings → API Keys* (secret key je nutný pro e-maily, připomínky, seed a veřejné API)
@@ -173,6 +174,18 @@ Každá ověřená odpověď obsahuje hlavičky `RateLimit-Limit`, `RateLimit-Re
 
 ### Endpointy
 
+#### `GET /staff` – tým
+
+```bash
+curl https://<doména>/api/v1/staff -H "Authorization: Bearer $REZERVO_API_KEY"
+```
+
+```json
+{ "data": [{ "id": "7a1e…", "name": "Jana", "service_ids": ["5b0c6f8e-…"] }] }
+```
+
+Aktivní pracovníci v pořadí, ve kterém se přidělují rezervace „Kdokoli“, a služby, které dělají.
+
 #### `GET /services` – seznam služeb
 
 ```bash
@@ -182,15 +195,15 @@ curl https://<doména>/api/v1/services -H "Authorization: Bearer $REZERVO_API_KE
 ```json
 {
   "data": [
-    { "id": "5b0c6f8e-…", "name": "Pánský střih", "description": "Střih nůžkami i strojkem", "duration_minutes": 30, "price_czk": 450 }
+    { "id": "5b0c6f8e-…", "name": "Pánský střih", "description": "Střih nůžkami i strojkem", "duration_minutes": 30, "price_czk": 450, "staff_ids": ["7a1e…"] }
   ],
   "meta": { "business": { "name": "Kadeřnictví U Nůžek", "slug": "u-nuzek", "timezone": "Europe/Prague" } }
 }
 ```
 
-Vrací jen aktivní služby v pořadí jako na rezervační stránce.
+Vrací jen aktivní služby, které dělá aspoň jeden aktivní pracovník, v pořadí jako na rezervační stránce.
 
-#### `GET /slots?service_id=<uuid>&date=YYYY-MM-DD` – volné termíny
+#### `GET /slots?service_id=<uuid>&date=YYYY-MM-DD[&staff_id=<uuid>]` – volné termíny
 
 ```bash
 curl "https://<doména>/api/v1/slots?service_id=5b0c6f8e-…&date=2026-10-14" -H "Authorization: Bearer $REZERVO_API_KEY"
@@ -204,13 +217,13 @@ curl "https://<doména>/api/v1/slots?service_id=5b0c6f8e-…&date=2026-10-14" -H
     "closed": false,
     "service": { "id": "5b0c6f8e-…", "name": "Pánský střih", "duration_minutes": 30 },
     "slots": [
-      { "starts_at": "2026-10-14T07:00:00.000Z", "ends_at": "2026-10-14T07:30:00.000Z", "local_time": "09:00" }
+      { "starts_at": "2026-10-14T07:00:00.000Z", "ends_at": "2026-10-14T07:30:00.000Z", "local_time": "09:00", "staff_ids": ["7a1e…"] }
     ]
   }
 }
 ```
 
-`date` je kalendářní den v časovém pásmu podniku. Rezervovat lze od dneška do 60 dnů dopředu (jinak `422 date_out_of_range` s `details.min_date` / `details.max_date`). Zavřený den vrací `closed: true`, prázdné `slots` a `closed_reason` (`"regular"` – mimo otevírací dny, `"holiday"` – dovolená/svátek). Termíny začínající dřív než za 30 minut se nenabízejí.
+`date` je kalendářní den v časovém pásmu podniku. Rezervovat lze od dneška do 60 dnů dopředu (jinak `422 date_out_of_range` s `details.min_date` / `details.max_date`). Zavřený den vrací `closed: true`, prázdné `slots` a `closed_reason` (`"regular"` – mimo otevírací dny, `"holiday"` – dovolená/svátek). Termíny začínající dřív než za 30 minut se nenabízejí. Bez `staff_id` jsou to časy, kdy je volný aspoň jeden pracovník (`staff_ids` = kdo je volný); se `staff_id` jen časy daného pracovníka (`404 staff_not_found`, pokud službu nedělá).
 
 #### `POST /bookings` – vytvoření rezervace
 
@@ -220,6 +233,7 @@ curl -X POST https://<doména>/api/v1/bookings \
   -H "Content-Type: application/json" \
   -d '{
     "service_id": "5b0c6f8e-…",
+    "staff_id": null,
     "starts_at": "2026-10-14T09:00:00+02:00",
     "customer": { "name": "Jana Nováková", "email": "jana@example.cz", "phone": "+420 777 123 456" }
   }'
@@ -238,13 +252,14 @@ Odpověď `201 Created` (+ hlavička `Location`):
     "local_time": "09:00",
     "timezone": "Europe/Prague",
     "service": { "id": "5b0c6f8e-…", "name": "Pánský střih", "duration_minutes": 30, "price_czk": 450 },
+    "staff": { "id": "7a1e…", "name": "Jana" },
     "customer": { "name": "Jana Nováková", "email": "jana@example.cz", "phone": "+420 777 123 456" },
     "created_at": "2026-10-10T09:12:00.000Z"
   }
 }
 ```
 
-`starts_at` použijte přesně z odpovědi `/slots`. Zákazník i majitel dostanou stejné e-maily jako u rezervace z webu. Validace: `customer.name` 2–100 znaků, platný `customer.email`, `customer.phone` 6–30 znaků (číslice, mezery, `()`, `-`, volitelně `+` na začátku). Dvojí rezervaci téhož času brání databáze i při souběžných požadavcích – druhý dostane `409 slot_taken`.
+`starts_at` použijte přesně z odpovědi `/slots`. `staff_id` je nepovinné – bez něj (nebo `null`) se přidělí první volný pracovník, který službu dělá; odpověď vždy obsahuje přiděleného `staff`. Zákazník i majitel dostanou stejné e-maily jako u rezervace z webu. Validace: `customer.name` 2–100 znaků, platný `customer.email`, `customer.phone` 6–30 znaků (číslice, mezery, `()`, `-`, volitelně `+` na začátku). Dvojí rezervaci téhož času brání databáze i při souběžných požadavcích – druhý dostane `409 slot_taken`.
 
 #### `GET /bookings/{id}` – detail rezervace
 
@@ -272,6 +287,7 @@ Vrací `200` a rezervaci se `"status": "cancelled"`; zákazník dostane e-mail o
 | 401 | `invalid_authorization_header` | Hlavička není ve tvaru `Bearer <klíč>` |
 | 401 | `invalid_api_key` | Neznámý nebo zneplatněný klíč |
 | 404 | `service_not_found` | Služba neexistuje, není aktivní nebo patří jinému podniku |
+| 404 | `staff_not_found` | Pracovník neexistuje, není aktivní nebo službu nedělá |
 | 404 | `booking_not_found` | Rezervace neexistuje nebo patří jinému podniku |
 | 404 | `not_found` | Neznámý endpoint |
 | 405 | – | Nepodporovaná HTTP metoda |
@@ -291,8 +307,8 @@ Vrací `200` a rezervaci se `"status": "cancelled"`; zákazník dostane e-mail o
 
 ### Doporučený postup pro AI asistenta
 
-1. `GET /services` → nabídnout službu a zjistit `timezone` podniku.
-2. `GET /slots` pro zvolený den → nabídnout časy (`local_time`).
+1. `GET /services` → nabídnout službu a zjistit `timezone` podniku. Pokud zákazník chce konkrétního pracovníka, `GET /staff`.
+2. `GET /slots` pro zvolený den (případně se `staff_id`) → nabídnout časy (`local_time`).
 3. `POST /bookings` se `starts_at` vybraného slotu. Při `409 slot_taken` načíst sloty znovu a nabídnout jiný čas.
 4. Uložit si `data.id` – stav zjistíte přes `GET /bookings/{id}`, zrušíte přes `POST /bookings/{id}/cancel`.
 

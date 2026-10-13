@@ -22,7 +22,7 @@ describe("parseIsoDateTime", () => {
 describe("validateSlotsQuery", () => {
   it("accepts valid parameters", () => {
     const r = validateSlotsQuery(new URLSearchParams({ service_id: SERVICE_ID.toUpperCase(), date: "2026-10-14" }));
-    expect(r).toEqual({ ok: true, value: { serviceId: SERVICE_ID, date: "2026-10-14" } });
+    expect(r).toEqual({ ok: true, value: { serviceId: SERVICE_ID, staffId: null, date: "2026-10-14" } });
   });
 
   it("lists every invalid field", () => {

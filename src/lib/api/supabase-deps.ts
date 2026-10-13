@@ -5,6 +5,7 @@ import { getSiteUrl } from "@/lib/site-url";
 import { notifyBookingCancelled, notifyBookingCreated } from "@/lib/notifications";
 import { apiError } from "./responses";
 import { createSupabaseRateLimiter } from "@/lib/rate-limit";
+import { groupBusyByStaff } from "@/lib/slots";
 import { createApiHandlers, type ApiDeps, type ApiHandlers, type ApiStore } from "./handlers";
 
 // The API authenticates with its own keys, not Supabase sessions, so it uses the
@@ -90,20 +91,34 @@ function createSupabaseStore(): ApiStore {
       return (data ?? []).length > 0;
     },
 
-    async getBusyIntervals(businessId, from, to) {
-      const { data, error } = await admin().rpc("get_busy_intervals", {
+    async listStaff(businessId) {
+      const { data, error } = await admin()
+        .from("staff")
+        .select("id, name, staff_services(service_id)")
+        .eq("business_id", businessId)
+        .eq("is_active", true)
+        .order("sort_order")
+        .order("created_at")
+        .order("id");
+      if (error) throw error;
+      return (data ?? []).map((m) => ({ id: m.id, name: m.name, service_ids: m.staff_services.map((l) => l.service_id) }));
+    },
+
+    async getStaffBusy(businessId, staffIds, from, to) {
+      const { data, error } = await admin().rpc("get_staff_busy_intervals", {
         p_business_id: businessId,
         p_from: from.toISOString(),
         p_to: to.toISOString(),
       });
       if (error) throw error;
-      return (data ?? []).map((b) => ({ start: new Date(b.starts_at), end: new Date(b.ends_at) }));
+      return groupBusyByStaff(staffIds, data ?? []);
     },
 
-    async createBooking({ businessId, serviceId, startsAt, customer }) {
+    async createBooking({ businessId, serviceId, staffId, startsAt, customer }) {
       const { data, error } = await admin().rpc("create_booking", {
         p_business_id: businessId,
         p_service_id: serviceId,
+        p_staff_id: staffId,
         p_starts_at: startsAt.toISOString(),
         p_customer_name: customer.name,
         p_customer_email: customer.email,
@@ -122,7 +137,7 @@ function createSupabaseStore(): ApiStore {
       const { data, error } = await admin()
         .from("bookings")
         .select(
-          "id, status, starts_at, ends_at, customer_name, customer_email, customer_phone, created_at, service:services(id, name, duration_minutes, price_czk)",
+          "id, status, starts_at, ends_at, customer_name, customer_email, customer_phone, created_at, service:services(id, name, duration_minutes, price_czk), staff(id, name)",
         )
         .eq("id", bookingId)
         .eq("business_id", businessId)

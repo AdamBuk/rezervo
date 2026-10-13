@@ -6,6 +6,7 @@ import {
   addDays,
   formatDateLong,
   isValidDateString,
+  isoWeekday,
   formatInTimeZone,
   formatTime,
   startOfWeek,
@@ -14,7 +15,9 @@ import {
   zonedTimeToUtc,
 } from "@/lib/time";
 import { formatPrice } from "@/lib/format";
-import { CalendarGrid, type CalendarBooking } from "./calendar/calendar-grid";
+import { WEEKDAYS } from "@/lib/constants";
+import { isUuid } from "@/lib/validation";
+import { CalendarGrid, type CalendarBooking, type CalendarColumn } from "./calendar/calendar-grid";
 import { BookingPanel } from "./calendar/booking-panel";
 
 export const metadata: Metadata = { title: "Kalendář" };
@@ -32,32 +35,46 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
   const dayCount = view === "week" ? 7 : 1;
   const days = Array.from({ length: dayCount }, (_, i) => addDays(rangeStart, i));
   const bookingId = typeof params.booking === "string" ? params.booking : null;
+  const staffFilter = typeof params.staff === "string" && isUuid(params.staff) ? params.staff : null;
 
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
-  const [{ data: bookings }, { data: hours }, { data: upcoming }] = await Promise.all([
-    supabase
-      .from("bookings")
-      .select("id, starts_at, ends_at, customer_name, customer_phone, services(name, price_czk)")
-      .eq("business_id", business.id)
-      .eq("status", "confirmed")
-      .gte("starts_at", zonedTimeToUtc(rangeStart, 0, business.timezone).toISOString())
-      .lt("starts_at", zonedTimeToUtc(addDays(rangeStart, dayCount), 0, business.timezone).toISOString())
-      .order("starts_at"),
+  let bookingsQuery = supabase
+    .from("bookings")
+    .select("id, starts_at, ends_at, customer_name, customer_phone, staff_id, services(name, price_czk)")
+    .eq("business_id", business.id)
+    .eq("status", "confirmed")
+    .gte("starts_at", zonedTimeToUtc(rangeStart, 0, business.timezone).toISOString())
+    .lt("starts_at", zonedTimeToUtc(addDays(rangeStart, dayCount), 0, business.timezone).toISOString())
+    .order("starts_at");
+  let upcomingQuery = supabase
+    .from("bookings")
+    .select("id, starts_at, customer_name, services(name)")
+    .eq("business_id", business.id)
+    .eq("status", "confirmed")
+    .gt("ends_at", nowIso);
+  if (staffFilter) {
+    bookingsQuery = bookingsQuery.eq("staff_id", staffFilter);
+    upcomingQuery = upcomingQuery.eq("staff_id", staffFilter);
+  }
+  const [{ data: bookings }, { data: hours }, { data: upcoming }, { data: staff }] = await Promise.all([
+    bookingsQuery,
     supabase.from("opening_hours").select("weekday, opens_at, closes_at").eq("business_id", business.id),
-    supabase
-      .from("bookings")
-      .select("id, starts_at, customer_name, services(name)")
-      .eq("business_id", business.id)
-      .eq("status", "confirmed")
-      .gt("ends_at", nowIso)
-      .order("starts_at")
-      .limit(1)
-      .maybeSingle(),
+    upcomingQuery.order("starts_at").limit(1).maybeSingle(),
+    supabase.from("staff").select("id, name, is_active").eq("business_id", business.id).order("sort_order").order("created_at"),
   ]);
+
+  const allStaff = staff ?? [];
+  const staffName = (id: string) => allStaff.find((m) => m.id === id)?.name ?? "";
+  // Inactive staff still get a column while they have bookings in view.
+  const visibleStaff = allStaff.filter(
+    (m) => (staffFilter === null || m.id === staffFilter) && (m.is_active || (bookings ?? []).some((b) => b.staff_id === m.id)),
+  );
+  const isTeam = allStaff.filter((m) => m.is_active).length > 1;
 
   const href = (overrides: Record<string, string | null>) => {
     const sp = new URLSearchParams({ view, date: requested });
+    if (staffFilter) sp.set("staff", staffFilter);
     for (const [k, v] of Object.entries(overrides)) {
       if (v === null) sp.delete(k);
       else sp.set(k, v);
@@ -77,7 +94,39 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
     endsAt: b.ends_at,
     customerName: b.customer_name,
     serviceName: b.services?.name ?? "",
+    staffId: b.staff_id,
+    staffName: staffName(b.staff_id),
   }));
+
+  const dayHref = (date: string) => {
+    const sp = new URLSearchParams({ view: "day", date });
+    if (staffFilter) sp.set("staff", staffFilter);
+    return `/dashboard?${sp}`;
+  };
+  // Day view of a team: one column per staff member. Otherwise one column per day.
+  const columns: CalendarColumn[] =
+    view === "day" && visibleStaff.length > 1
+      ? visibleStaff.map((m) => ({
+          key: m.id,
+          date: requested,
+          label: m.is_active ? m.name : `${m.name} (neaktivní)`,
+          href: href({ staff: m.id, booking: null }),
+          highlight: false,
+          match: (b) => b.staffId === m.id,
+        }))
+      : days.map((d) => {
+          const [, month, day] = d.split("-").map(Number);
+          const weekday = WEEKDAYS[isoWeekday(d) - 1];
+          return {
+            key: d,
+            date: d,
+            label: view === "week" ? weekday.short : weekday.label,
+            badge: `${day}. ${month}.`,
+            href: dayHref(d),
+            highlight: d === today,
+            match: () => true,
+          };
+        });
 
   const revenue = (bookings ?? []).reduce((sum, b) => sum + (b.services?.price_czk ?? 0), 0);
   const now = toZoned(new Date(), business.timezone);
@@ -123,6 +172,29 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
         </div>
       </dl>
 
+      {isTeam && (
+        <nav aria-label="Filtr pracovníků" className="-mx-4 overflow-x-auto px-4 [scrollbar-width:none] sm:mx-0 sm:px-0">
+          <ul className="inline-flex min-w-max gap-1.5">
+            {[{ id: null, name: "Celý tým" }, ...allStaff.filter((m) => m.is_active || m.id === staffFilter)].map((m) => {
+              const active = staffFilter === m.id;
+              return (
+                <li key={m.id ?? "all"}>
+                  <Link
+                    href={href({ staff: m.id, booking: null })}
+                    aria-current={active ? "page" : undefined}
+                    className={`block rounded-full border px-3.5 py-1.5 text-sm font-semibold transition-[color,background-color,border-color] duration-150 ${
+                      active ? "border-ink bg-ink text-on-ink" : "border-edge bg-surface text-stone-600 hover:border-stone-300 hover:text-stone-900"
+                    }`}
+                  >
+                    {m.name}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Link href={href({ date: addDays(requested, -step), booking: null })} className="btn-secondary size-11 p-0" aria-label="Předchozí">
@@ -153,15 +225,14 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
       {calendarBookings.length === 0 && <p className="text-sm text-stone-500">V tomto období nemáte žádné rezervace.</p>}
 
       <CalendarGrid
-        days={days}
-        today={today}
+        columns={columns}
         timeZone={business.timezone}
         bookings={calendarBookings}
         hours={hours ?? []}
         now={now}
         bookingHref={(id) => href({ booking: id })}
-        dayHref={(date) => `/dashboard?${new URLSearchParams({ view: "day", date })}`}
         selectedId={bookingId}
+        showStaff={isTeam && staffFilter === null && view === "week"}
       />
 
       {bookingId && <BookingPanel bookingId={bookingId} business={business} closeHref={href({ booking: null })} />}

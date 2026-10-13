@@ -129,6 +129,7 @@ export type Database = {
           id: string;
           business_id: string;
           service_id: string;
+          staff_id: string;
           customer_name: string;
           customer_email: string;
           customer_phone: string;
@@ -142,6 +143,7 @@ export type Database = {
           id?: string;
           business_id: string;
           service_id: string;
+          staff_id: string;
           customer_name: string;
           customer_email: string;
           customer_phone: string;
@@ -155,6 +157,7 @@ export type Database = {
           id?: string;
           business_id?: string;
           service_id?: string;
+          staff_id?: string;
           customer_name?: string;
           customer_email?: string;
           customer_phone?: string;
@@ -170,6 +173,13 @@ export type Database = {
             columns: ["business_id"];
             isOneToOne: false;
             referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "bookings_staff_id_fkey";
+            columns: ["staff_id"];
+            isOneToOne: false;
+            referencedRelation: "staff";
             referencedColumns: ["id"];
           },
           {
@@ -257,6 +267,62 @@ export type Database = {
           },
         ];
       };
+      staff: {
+        Row: {
+          id: string;
+          business_id: string;
+          name: string;
+          is_active: boolean;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          business_id: string;
+          name: string;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          business_id?: string;
+          name?: string;
+          is_active?: boolean;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "staff_business_id_fkey";
+            columns: ["business_id"];
+            isOneToOne: false;
+            referencedRelation: "businesses";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      staff_services: {
+        Row: { staff_id: string; service_id: string };
+        Insert: { staff_id: string; service_id: string };
+        Update: { staff_id?: string; service_id?: string };
+        Relationships: [
+          {
+            foreignKeyName: "staff_services_staff_id_fkey";
+            columns: ["staff_id"];
+            isOneToOne: false;
+            referencedRelation: "staff";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "staff_services_service_id_fkey";
+            columns: ["service_id"];
+            isOneToOne: false;
+            referencedRelation: "services";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       api_rate_limits: {
         Row: { bucket: string; window_start: string; hits: number };
         Insert: { bucket: string; window_start: string; hits?: number };
@@ -266,9 +332,9 @@ export type Database = {
     };
     Views: { [_ in never]: never };
     Functions: {
-      get_busy_intervals: {
+      get_staff_busy_intervals: {
         Args: { p_business_id: string; p_from: string; p_to: string };
-        Returns: { starts_at: string; ends_at: string }[];
+        Returns: { staff_id: string; starts_at: string; ends_at: string }[];
       };
       create_booking: {
         Args: {
@@ -278,6 +344,7 @@ export type Database = {
           p_customer_name: string;
           p_customer_email: string;
           p_customer_phone: string;
+          p_staff_id?: string | null;
         };
         Returns: string;
       };
@@ -304,3 +371,4 @@ export type OpeningHours = Tables<"opening_hours">;
 export type Booking = Tables<"bookings">;
 export type ApiKey = Tables<"api_keys">;
 export type Closure = Tables<"closures">;
+export type Staff = Tables<"staff">;

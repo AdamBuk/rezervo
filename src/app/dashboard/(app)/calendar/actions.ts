@@ -9,6 +9,7 @@ import { addDays, isoWeekday, isValidDateString, timeToMinutes, zonedTimeToUtc }
 import type { ActionState } from "@/lib/constants";
 import { getSiteUrl } from "@/lib/site-url";
 import { notifyBookingCancelled, notifyBookingRescheduled } from "@/lib/notifications";
+import { isUuid } from "@/lib/validation";
 
 export async function cancelBooking(_prev: ActionState, formData: FormData): Promise<ActionState> {
   const business = await requireBusiness();
@@ -38,21 +39,39 @@ export async function rescheduleBooking(_prev: ActionState, formData: FormData):
   const id = String(formData.get("id"));
   const date = String(formData.get("date") ?? "");
   const time = String(formData.get("time") ?? "");
+  const requestedStaff = String(formData.get("staff_id") ?? "");
 
   if (!isValidDateString(date) || !/^\d{2}:\d{2}$/.test(time)) return { error: "Zadejte platné datum a čas." };
+  if (!isUuid(id)) return { error: "Rezervace nebyla nalezena." };
 
   const supabase = await createClient();
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id, starts_at, ends_at, status, services(duration_minutes)")
+    .select("id, starts_at, ends_at, status, staff_id, service_id, services(duration_minutes)")
     .eq("id", id)
     .eq("business_id", business.id)
     .maybeSingle();
 
   if (!booking || booking.status !== "confirmed" || !booking.services) return { error: "Rezervace nebyla nalezena." };
 
+  // Another staff member must be active and do the service; keeping the current one is always fine.
+  const staffId = isUuid(requestedStaff) ? requestedStaff : booking.staff_id;
+  if (staffId !== booking.staff_id) {
+    const { data: eligible } = await supabase
+      .from("staff")
+      .select("id, staff_services!inner(service_id)")
+      .eq("id", staffId)
+      .eq("business_id", business.id)
+      .eq("is_active", true)
+      .eq("staff_services.service_id", booking.service_id)
+      .maybeSingle();
+    if (!eligible) return { error: "Vybraný pracovník tuto službu nedělá nebo není aktivní." };
+  }
+
   const startsAt = zonedTimeToUtc(date, timeToMinutes(time), business.timezone);
-  if (startsAt.getTime() === new Date(booking.starts_at).getTime()) return { error: "Vyberte jiný termín než stávající." };
+  if (startsAt.getTime() === new Date(booking.starts_at).getTime() && staffId === booking.staff_id) {
+    return { error: "Vyberte jiný termín nebo pracovníka než stávající." };
+  }
 
   // Check against opening hours and other bookings (excluding this one).
   const [{ data: regularOpening }, { data: others }, { data: closure }] = await Promise.all([
@@ -67,6 +86,7 @@ export async function rescheduleBooking(_prev: ActionState, formData: FormData):
       .select("starts_at, ends_at")
       .eq("business_id", business.id)
       .eq("status", "confirmed")
+      .eq("staff_id", staffId)
       .neq("id", id)
       .lt("starts_at", zonedTimeToUtc(addDays(date, 1), 0, business.timezone).toISOString())
       .gt("ends_at", zonedTimeToUtc(date, 0, business.timezone).toISOString()),
@@ -94,13 +114,19 @@ export async function rescheduleBooking(_prev: ActionState, formData: FormData):
   });
 
   if (!available.some((s) => s.getTime() === startsAt.getTime())) {
-    return { error: "Termín je v minulosti, mimo otevírací dobu, nebo koliduje s jinou rezervací." };
+    return { error: "Termín je v minulosti, mimo otevírací dobu, nebo koliduje s jinou rezervací pracovníka." };
   }
 
   const endsAt = new Date(startsAt.getTime() + duration * 60_000);
   const { error } = await supabase
     .from("bookings")
-    .update({ starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(), reminder_sent_at: null })
+    .update({
+      starts_at: startsAt.toISOString(),
+      ends_at: endsAt.toISOString(),
+      staff_id: staffId,
+      // A new time needs a new reminder; a staff change alone doesn't.
+      ...(startsAt.getTime() !== new Date(booking.starts_at).getTime() ? { reminder_sent_at: null } : {}),
+    })
     .eq("id", id)
     .eq("business_id", business.id);
 
@@ -110,9 +136,12 @@ export async function rescheduleBooking(_prev: ActionState, formData: FormData):
     return { error: "Rezervaci se nepodařilo přesunout." };
   }
 
-  const siteUrl = await getSiteUrl();
-  after(() => notifyBookingRescheduled(id, booking.starts_at, siteUrl));
+  const timeChanged = startsAt.getTime() !== new Date(booking.starts_at).getTime();
+  if (timeChanged) {
+    const siteUrl = await getSiteUrl();
+    after(() => notifyBookingRescheduled(id, booking.starts_at, siteUrl));
+  }
 
   revalidatePath("/dashboard");
-  return { success: "Rezervace byla přesunuta." };
+  return { success: timeChanged ? "Rezervace byla přesunuta." : "Rezervace byla předána jinému pracovníkovi." };
 }

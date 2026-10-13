@@ -88,6 +88,8 @@ export default async function BusinessPage({ params }: PageProps<"/[slug]">) {
         <BookingWidget
           business={business}
           services={services}
+          staff={data.staff}
+          staffByService={data.staffByService}
           openWeekdays={hours.map((h) => h.weekday)}
           closures={closures}
           today={today}

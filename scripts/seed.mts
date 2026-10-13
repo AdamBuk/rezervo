@@ -43,6 +43,13 @@ const SERVICES = [
   { name: "Společenský účes", description: "Svatby, plesy, focení", duration_minutes: 90, price_czk: 990 },
 ];
 
+// Team: who does which services (by name). Each has their own calendar.
+const STAFF: { name: string; services: string[] }[] = [
+  { name: "Jana", services: SERVICES.map((s) => s.name) },
+  { name: "Petra", services: ["Dámský střih", "Barvení", "Melír", "Společenský účes"] },
+  { name: "Tomáš", services: ["Pánský střih", "Dětský střih", "Dámský střih"] },
+];
+
 // ISO weekday → [opens, closes]
 const HOURS: Record<number, [string, string]> = {
   1: ["09:00", "18:00"],
@@ -202,7 +209,20 @@ async function main() {
   );
   if (hoursError) throw hoursError;
 
-  // Bookings: from 3 days ago to 14 days ahead, filling ~60 % of each day.
+  const { data: staff, error: staffError } = await supabase
+    .from("staff")
+    .insert(STAFF.map((m, i) => ({ business_id: business.id, name: m.name, sort_order: i })))
+    .select("id, name");
+  if (staffError) throw staffError;
+
+  const staffServices = STAFF.flatMap((m) => {
+    const staffId = staff.find((x) => x.name === m.name)!.id;
+    return services.filter((s) => m.services.includes(s.name)).map((s) => ({ staff_id: staffId, service_id: s.id }));
+  });
+  const { error: linkError } = await supabase.from("staff_services").insert(staffServices);
+  if (linkError) throw linkError;
+
+  // Bookings: from 3 days ago to 14 days ahead, filling ~55 % of each staff member's day.
   const today = new Intl.DateTimeFormat("en-CA", { timeZone: TZ }).format(new Date());
   const bookings = [];
   for (let offset = -3; offset <= 14; offset++) {
@@ -210,32 +230,36 @@ async function main() {
     const hours = HOURS[isoWeekday(date)];
     if (!hours) continue;
 
-    let cursor = toMin(hours[0]);
-    const close = toMin(hours[1]);
-    while (cursor < close) {
-      // Leave gaps so the booking page shows free slots.
-      if (rand() < 0.4) {
-        cursor += 30;
-        continue;
-      }
-      const service = services[Math.floor(rand() * services.length)];
-      if (cursor + service.duration_minutes > close) break;
+    for (const member of staff) {
+      const own = services.filter((s) => staffServices.some((l) => l.staff_id === member.id && l.service_id === s.id));
+      let cursor = toMin(hours[0]);
+      const close = toMin(hours[1]);
+      while (cursor < close) {
+        // Leave gaps so the booking page shows free slots.
+        if (rand() < 0.45) {
+          cursor += 30;
+          continue;
+        }
+        const service = own[Math.floor(rand() * own.length)];
+        if (cursor + service.duration_minutes > close) break;
 
-      const [name, phone] = CUSTOMERS[Math.floor(rand() * CUSTOMERS.length)];
-      const start = pragueToUtc(date, cursor);
-      bookings.push({
-        business_id: business.id,
-        service_id: service.id,
-        customer_name: name,
-        customer_email: emailFor(name),
-        customer_phone: phone,
-        starts_at: start.toISOString(),
-        ends_at: new Date(start.getTime() + service.duration_minutes * 60_000).toISOString(),
-        status: rand() < 0.06 ? "cancelled" : "confirmed",
-        // Don't trigger reminder e-mails to fake customers.
-        reminder_sent_at: new Date().toISOString(),
-      });
-      cursor += service.duration_minutes;
+        const [name, phone] = CUSTOMERS[Math.floor(rand() * CUSTOMERS.length)];
+        const start = pragueToUtc(date, cursor);
+        bookings.push({
+          business_id: business.id,
+          service_id: service.id,
+          staff_id: member.id,
+          customer_name: name,
+          customer_email: emailFor(name),
+          customer_phone: phone,
+          starts_at: start.toISOString(),
+          ends_at: new Date(start.getTime() + service.duration_minutes * 60_000).toISOString(),
+          status: rand() < 0.06 ? "cancelled" : "confirmed",
+          // Don't trigger reminder e-mails to fake customers.
+          reminder_sent_at: new Date().toISOString(),
+        });
+        cursor += service.duration_minutes;
+      }
     }
   }
 
@@ -244,7 +268,7 @@ async function main() {
 
   const apiKey = await createApiKey(business.id, encryptionSecret!);
 
-  console.log(`Created business /${SLUG} with ${services.length} services and ${bookings.length} bookings.`);
+  console.log(`Created business /${SLUG} with ${services.length} services, ${staff.length} staff and ${bookings.length} bookings.`);
   console.log(`Log in at /login with ${DEMO_EMAIL} / ${DEMO_PASSWORD}`);
   console.log(`API key: ${apiKey}`);
 }

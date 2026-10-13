@@ -7,6 +7,8 @@ export type BookingEmailData = {
   customerEmail: string;
   customerPhone: string;
   serviceName: string;
+  /** Only for businesses with a team (a one-person business doesn't need it in e-mails) */
+  staffName?: string | null;
   durationMinutes: number;
   priceCzk: number;
   startsAt: string;
@@ -38,10 +40,15 @@ function when(d: BookingEmailData, startsAt = d.startsAt) {
   return `${date} v ${formatTime(startsAt, tz)}`;
 }
 
+function staffRow(d: BookingEmailData): [string, string][] {
+  return d.staffName ? [["Pracovník", d.staffName]] : [];
+}
+
 /** Detail rows as [label, value] – rendered both to HTML and plain text. */
 function detailRows(d: BookingEmailData): [string, string][] {
   const rows: [string, string][] = [
     ["Služba", d.serviceName],
+    ...staffRow(d),
     ["Termín", when(d)],
     ["Délka", formatDuration(d.durationMinutes)],
     ["Cena", formatPrice(d.priceCzk)],
@@ -137,6 +144,7 @@ export function ownerNotificationEmail(d: BookingEmailData): EmailMessage {
       intro: `${d.customerName} si právě zarezervoval(a) termín přes vaši rezervační stránku.`,
       rows: [
         ["Služba", d.serviceName],
+        ...staffRow(d),
         ["Termín", when(d)],
         ["Zákazník", d.customerName],
         ["E-mail", d.customerEmail],
@@ -208,6 +216,7 @@ export function customerCancelledOwnerEmail(d: BookingEmailData): EmailMessage {
         ["E-mail", d.customerEmail],
         ["Telefon", d.customerPhone],
         ["Služba", d.serviceName],
+        ...staffRow(d),
         ["Termín", when(d)],
       ],
       outro: `Kalendář: ${d.siteUrl}/dashboard`,

@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const items = [
   { href: "/dashboard", label: "Kalendář" },
   { href: "/dashboard/services", label: "Služby" },
+  { href: "/dashboard/staff", label: "Tým" },
   { href: "/dashboard/hours", label: "Otevírací doba" },
   { href: "/dashboard/settings", label: "Nastavení" },
   { href: "/dashboard/api", label: "API" },

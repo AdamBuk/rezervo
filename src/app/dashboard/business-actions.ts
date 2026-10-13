@@ -52,6 +52,9 @@ export async function createBusiness(_prev: ActionState, formData: FormData): Pr
     return { error: "Podnik se nepodařilo uložit. Zkuste to znovu." };
   }
 
+  // Every business needs a staff member; a one-person business never sees the difference.
+  await supabase.from("staff").insert({ business_id: business.id, name: fields.name });
+
   // Sensible default so the booking page works right away: Mon–Fri 9:00–17:00.
   await supabase.from("opening_hours").insert(
     [1, 2, 3, 4, 5].map((weekday) => ({ business_id: business.id, weekday, opens_at: "09:00", closes_at: "17:00" })),

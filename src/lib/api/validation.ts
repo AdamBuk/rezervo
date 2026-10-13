@@ -29,13 +29,15 @@ export function parseIsoDateTime(value: unknown): Date | null {
   return date;
 }
 
-export type SlotsQuery = { serviceId: string; date: string };
+export type SlotsQuery = { serviceId: string; staffId: string | null; date: string };
 
 export function validateSlotsQuery(params: URLSearchParams): Validated<SlotsQuery> {
   const errors: FieldError[] = [];
   const serviceId = params.get("service_id");
   const date = params.get("date");
+  const staffId = params.get("staff_id") || null;
 
+  if (staffId !== null && !isUuid(staffId)) errors.push({ field: "staff_id", message: "Must be a UUID." });
   if (!serviceId) errors.push({ field: "service_id", message: "Required." });
   else if (!isUuid(serviceId)) errors.push({ field: "service_id", message: "Must be a UUID." });
 
@@ -43,11 +45,13 @@ export function validateSlotsQuery(params: URLSearchParams): Validated<SlotsQuer
   else if (!isValidDateString(date)) errors.push({ field: "date", message: "Must be a valid date in format YYYY-MM-DD." });
 
   if (errors.length || !serviceId || !date) return { ok: false, errors };
-  return { ok: true, value: { serviceId: serviceId.toLowerCase(), date } };
+  return { ok: true, value: { serviceId: serviceId.toLowerCase(), staffId: staffId?.toLowerCase() ?? null, date } };
 }
 
 export type CreateBookingInput = {
   serviceId: string;
+  /** Null = anyone who performs the service */
+  staffId: string | null;
   startsAt: Date;
   customer: { name: string; email: string; phone: string };
 };
@@ -63,6 +67,9 @@ export function validateCreateBooking(body: unknown): Validated<CreateBookingInp
 
   const serviceId = body.service_id;
   if (!isUuid(serviceId)) errors.push({ field: "service_id", message: "Required, must be a UUID." });
+
+  const staffId = body.staff_id ?? null;
+  if (staffId !== null && !isUuid(staffId)) errors.push({ field: "staff_id", message: "Must be a UUID or null (anyone)." });
 
   const startsAt = parseIsoDateTime(body.starts_at);
   if (!startsAt) {
@@ -91,6 +98,16 @@ export function validateCreateBooking(body: unknown): Validated<CreateBookingInp
     }
   }
 
-  if (errors.length || !isUuid(serviceId) || !startsAt) return { ok: false, errors };
-  return { ok: true, value: { serviceId: serviceId.toLowerCase(), startsAt, customer: { name, email, phone } } };
+  if (errors.length || !isUuid(serviceId) || !startsAt || (staffId !== null && !isUuid(staffId))) {
+    return { ok: false, errors };
+  }
+  return {
+    ok: true,
+    value: {
+      serviceId: serviceId.toLowerCase(),
+      staffId: staffId === null ? null : staffId.toLowerCase(),
+      startsAt,
+      customer: { name, email, phone },
+    },
+  };
 }

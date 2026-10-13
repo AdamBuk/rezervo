@@ -2,7 +2,7 @@
 // through `ApiDeps`, so the route files wire in Supabase and tests use fakes.
 
 import { BOOKING_HORIZON_DAYS, MIN_NOTICE_MINUTES } from "@/lib/constants";
-import { computeAvailableSlots, type Interval } from "@/lib/slots";
+import { computeStaffSlots, type StaffBusy } from "@/lib/slots";
 import { addDays, isoWeekday, minutesToTime, todayInTimeZone, toZoned, zonedTimeToUtc } from "@/lib/time";
 import { hashApiKey, isWellFormedApiKey, parseBearer } from "./keys";
 import { apiError, apiJson } from "./responses";
@@ -16,6 +16,8 @@ export type ApiService = {
   duration_minutes: number;
   price_czk: number;
 };
+/** Active staff member with the services they perform. */
+export type ApiStaff = { id: string; name: string; service_ids: string[] };
 export type ApiBookingRecord = {
   id: string;
   status: "confirmed" | "cancelled";
@@ -26,6 +28,7 @@ export type ApiBookingRecord = {
   customer_phone: string;
   created_at: string;
   service: Pick<ApiService, "id" | "name" | "duration_minutes" | "price_czk"> | null;
+  staff: { id: string; name: string } | null;
 };
 
 export type CreateBookingResult = { ok: true; id: string } | { ok: false; code: string };
@@ -40,11 +43,15 @@ export interface ApiStore {
   getOpeningHours(businessId: string, weekday: number): Promise<{ opens_at: string; closes_at: string } | null>;
   /** Whether a closure (holiday) covers the calendar day */
   isClosedOn(businessId: string, date: string): Promise<boolean>;
-  getBusyIntervals(businessId: string, from: Date, to: Date): Promise<Interval[]>;
-  /** Atomic booking via create_booking(); `code` is its error (slot_taken, …). */
+  /** Active staff in sort order (the order create_booking() assigns "anyone" in). */
+  listStaff(businessId: string): Promise<ApiStaff[]>;
+  /** Confirmed bookings overlapping [from, to), per staff member. */
+  getStaffBusy(businessId: string, staffIds: string[], from: Date, to: Date): Promise<StaffBusy[]>;
+  /** Atomic booking via create_booking(); `code` is its error (slot_taken, …). Null staffId = anyone. */
   createBooking(input: {
     businessId: string;
     serviceId: string;
+    staffId: string | null;
     startsAt: Date;
     customer: { name: string; email: string; phone: string };
   }): Promise<CreateBookingResult>;
@@ -89,6 +96,11 @@ const BOOKING_ERRORS: Record<string, { status: number; code: Parameters<typeof a
   business_closed: { status: 422, code: "business_closed", message: "The business is closed on this day (holiday)." },
   slot_misaligned: { status: 422, code: "slot_misaligned", message: "Start time isn't one of the offered slot times." },
   service_not_found: { status: 404, code: "service_not_found", message: "Service not found or not active." },
+  staff_not_found: {
+    status: 404,
+    code: "staff_not_found",
+    message: "Staff member not found, not active or doesn't perform this service.",
+  },
 };
 
 function rateLimitHeaders(r: RateLimitResult, now: Date): Record<string, string> {
@@ -104,14 +116,20 @@ function bookableRange(timeZone: string, now: Date) {
   return { from, to: addDays(from, BOOKING_HORIZON_DAYS) };
 }
 
-function serializeService(s: ApiService) {
+function serializeService(s: ApiService, staff: readonly ApiStaff[]) {
   return {
     id: s.id,
     name: s.name,
     description: s.description,
     duration_minutes: s.duration_minutes,
     price_czk: s.price_czk,
+    staff_ids: staffFor(s.id, staff).map((member) => member.id),
   };
+}
+
+/** Active staff performing the service, in sort order. */
+function staffFor(serviceId: string, staff: readonly ApiStaff[]): ApiStaff[] {
+  return staff.filter((member) => member.service_ids.includes(serviceId));
 }
 
 function serializeBooking(b: ApiBookingRecord, timeZone: string) {
@@ -125,6 +143,7 @@ function serializeBooking(b: ApiBookingRecord, timeZone: string) {
     local_time: minutesToTime(local.minutes),
     timezone: timeZone,
     service: b.service,
+    staff: b.staff,
     customer: { name: b.customer_name, email: b.customer_email, phone: b.customer_phone },
     created_at: new Date(b.created_at).toISOString(),
   };
@@ -186,23 +205,39 @@ export function createApiHandlers(deps: ApiDeps) {
   /** GET /api/v1/services */
   function listServices(request: Request) {
     return withApi(request, "read", async ({ business }) => {
-      const services = await store.listServices(business.id);
+      const [services, staff] = await Promise.all([store.listServices(business.id), store.listStaff(business.id)]);
       return apiJson({
-        data: services.map(serializeService),
+        // Services nobody performs can't be booked, so they aren't listed.
+        data: services.filter((s) => staffFor(s.id, staff).length > 0).map((s) => serializeService(s, staff)),
         meta: { business: { name: business.name, slug: business.slug, timezone: business.timezone } },
       });
     });
   }
 
-  /** GET /api/v1/slots?service_id=<uuid>&date=YYYY-MM-DD */
+  /** GET /api/v1/staff */
+  function listStaff(request: Request) {
+    return withApi(request, "read", async ({ business }) => {
+      const staff = await store.listStaff(business.id);
+      return apiJson({ data: staff.map((m) => ({ id: m.id, name: m.name, service_ids: m.service_ids })) });
+    });
+  }
+
+  /** GET /api/v1/slots?service_id=<uuid>&date=YYYY-MM-DD[&staff_id=<uuid>] */
   function getSlots(request: Request) {
     return withApi(request, "read", async ({ business }) => {
       const query = validateSlotsQuery(new URL(request.url).searchParams);
       if (!query.ok) return apiError(400, "validation_error", "Invalid query parameters.", { details: query.errors });
-      const { serviceId, date } = query.value;
+      const { serviceId, staffId, date } = query.value;
 
-      const service = (await store.listServices(business.id)).find((s) => s.id === serviceId);
-      if (!service) return apiError(404, "service_not_found", "Service not found or not active.");
+      const [services, allStaff] = await Promise.all([store.listServices(business.id), store.listStaff(business.id)]);
+      const service = services.find((s) => s.id === serviceId);
+      const performing = service ? staffFor(service.id, allStaff) : [];
+      if (!service || !performing.length) return apiError(404, "service_not_found", "Service not found or not active.");
+      const eligible = performing.filter((m) => staffId === null || m.id === staffId);
+      if (!eligible.length) {
+        const { status, code, message } = BOOKING_ERRORS.staff_not_found;
+        return apiError(status, code, message);
+      }
 
       const current = now();
       const range = bookableRange(business.timezone, current);
@@ -217,21 +252,22 @@ export function createApiHandlers(deps: ApiDeps) {
         store.isClosedOn(business.id, date),
       ]);
       const opening = holiday ? null : regularHours;
-      const busy = opening
-        ? await store.getBusyIntervals(
+      const staffBusy = opening
+        ? await store.getStaffBusy(
             business.id,
+            eligible.map((m) => m.id),
             zonedTimeToUtc(date, 0, business.timezone),
             zonedTimeToUtc(addDays(date, 1), 0, business.timezone),
           )
         : [];
 
-      const slots = computeAvailableSlots({
+      const slots = computeStaffSlots({
         date,
         timeZone: business.timezone,
         opening,
         durationMinutes: service.duration_minutes,
         stepMinutes: business.slot_step_minutes,
-        busy,
+        staff: staffBusy,
         now: current,
         minNoticeMinutes: MIN_NOTICE_MINUTES,
       });
@@ -243,10 +279,12 @@ export function createApiHandlers(deps: ApiDeps) {
           closed: opening === null,
           ...(holiday ? { closed_reason: "holiday" } : regularHours === null ? { closed_reason: "regular" } : {}),
           service: { id: service.id, name: service.name, duration_minutes: service.duration_minutes },
-          slots: slots.map((start) => ({
+          ...(staffId ? { staff_id: staffId } : {}),
+          slots: slots.map(({ start, staffIds }) => ({
             starts_at: start.toISOString(),
             ends_at: new Date(start.getTime() + service.duration_minutes * 60_000).toISOString(),
             local_time: minutesToTime(toZoned(start, business.timezone).minutes),
+            staff_ids: staffIds,
           })),
         },
       });
@@ -278,7 +316,7 @@ export function createApiHandlers(deps: ApiDeps) {
 
       const input = validateCreateBooking(body);
       if (!input.ok) return apiError(400, "validation_error", "Invalid request body.", { details: input.errors });
-      const { serviceId, startsAt, customer } = input.value;
+      const { serviceId, staffId, startsAt, customer } = input.value;
 
       const service = (await store.listServices(business.id)).find((s) => s.id === serviceId);
       if (!service) return apiError(404, "service_not_found", "Service not found or not active.");
@@ -298,7 +336,7 @@ export function createApiHandlers(deps: ApiDeps) {
         });
       }
 
-      const result = await store.createBooking({ businessId: business.id, serviceId, startsAt, customer });
+      const result = await store.createBooking({ businessId: business.id, serviceId, staffId, startsAt, customer });
       if (!result.ok) {
         const mapped = BOOKING_ERRORS[result.code];
         if (!mapped) throw new Error(`create_booking failed: ${result.code}`);
@@ -307,7 +345,8 @@ export function createApiHandlers(deps: ApiDeps) {
 
       deps.runInBackground(() => deps.notifyBookingCreated(result.id));
 
-      const booking: ApiBookingRecord = {
+      // Read back to include the assigned staff member (relevant when "anyone" was requested).
+      const booking: ApiBookingRecord = (await store.getBooking(business.id, result.id)) ?? {
         id: result.id,
         status: "confirmed",
         starts_at: startsAt.toISOString(),
@@ -317,6 +356,7 @@ export function createApiHandlers(deps: ApiDeps) {
         customer_phone: customer.phone,
         created_at: current.toISOString(),
         service: { id: service.id, name: service.name, duration_minutes: service.duration_minutes, price_czk: service.price_czk },
+        staff: null,
       };
       return apiJson({ data: serializeBooking(booking, business.timezone) }, 201, {
         Location: `/api/v1/bookings/${result.id}`,
@@ -367,7 +407,7 @@ export function createApiHandlers(deps: ApiDeps) {
     });
   }
 
-  return { listServices, getSlots, createBooking, getBooking, cancelBooking };
+  return { listServices, listStaff, getSlots, createBooking, getBooking, cancelBooking };
 }
 
 export type ApiHandlers = ReturnType<typeof createApiHandlers>;

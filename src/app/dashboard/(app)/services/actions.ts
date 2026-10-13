@@ -44,10 +44,21 @@ export async function createService(_prev: ActionState, formData: FormData): Pro
     .select("id", { count: "exact", head: true })
     .eq("business_id", business.id);
 
-  const { error } = await supabase
+  const { data: service, error } = await supabase
     .from("services")
-    .insert({ ...fields, business_id: business.id, sort_order: count ?? 0 });
+    .insert({ ...fields, business_id: business.id, sort_order: count ?? 0 })
+    .select("id")
+    .single();
   if (error) return { error: "Službu se nepodařilo přidat." };
+
+  // Every active staff member offers a new service by default (adjustable in Tým).
+  const { data: staff } = await supabase.from("staff").select("id").eq("business_id", business.id).eq("is_active", true);
+  if (staff?.length) {
+    const { error: linkError } = await supabase
+      .from("staff_services")
+      .insert(staff.map((m) => ({ staff_id: m.id, service_id: service.id })));
+    if (linkError) return { error: "Služba byla přidána, ale nepodařilo se ji přiřadit týmu. Upravte to v sekci Tým." };
+  }
 
   revalidate(business.slug);
   return { success: `Služba „${fields.name}“ byla přidána.` };

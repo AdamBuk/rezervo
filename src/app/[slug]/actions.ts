@@ -8,7 +8,7 @@ import { getSiteUrl } from "@/lib/site-url";
 import { notifyBookingCreated } from "@/lib/notifications";
 import { bookingManageToken, getBookingLinkSecret } from "@/lib/booking-link";
 import { isRateLimitedByIp } from "@/lib/rate-limit";
-import { isValidCustomerName, isValidPhone } from "@/lib/validation";
+import { isUuid, isValidCustomerName, isValidPhone } from "@/lib/validation";
 
 /** Per visitor IP: generous for real customers (incl. retries after "slot taken"), stops scripted spam. */
 const BOOKING_LIMIT = { limit: 8, windowSeconds: 600 } as const;
@@ -22,6 +22,8 @@ export type BookingState =
       serviceName: string;
       durationMinutes: number;
       startsAt: string;
+      /** Set when the customer chose a specific staff member */
+      staffName: string | null;
       email: string;
       /** Relative manage/cancel link, when links are configured */
       managePath: string | null;
@@ -35,6 +37,7 @@ const DB_ERRORS: Record<string, string> = {
   business_closed: "V tento den má podnik zavřeno. Vyberte prosím jiný den.",
   slot_misaligned: "Vybraný čas není platný. Obnovte stránku a zkuste to znovu.",
   service_not_found: "Vybraná služba už není k dispozici.",
+  staff_not_found: "Vybraný pracovník tuto službu už nenabízí. Vyberte prosím jiného.",
   business_not_found: "Podnik nebyl nalezen.",
 };
 
@@ -44,6 +47,7 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
 
   const slug = String(formData.get("slug") ?? "");
   const serviceId = String(formData.get("service_id") ?? "");
+  const staffId = String(formData.get("staff_id") ?? "") || null;
   const startsAt = String(formData.get("starts_at") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
@@ -53,6 +57,7 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
   if (!isEmail(email)) return { status: "error", error: "Zadejte platný e-mail." };
   if (!isValidPhone(phone)) return { status: "error", error: "Zadejte platné telefonní číslo." };
   if (Number.isNaN(Date.parse(startsAt))) return { status: "error", error: "Vyberte termín." };
+  if (staffId !== null && !isUuid(staffId)) return { status: "error", error: DB_ERRORS.staff_not_found };
 
   if (await isRateLimitedByIp("booking", BOOKING_LIMIT.limit, BOOKING_LIMIT.windowSeconds)) {
     return { status: "error", error: "Odeslali jste příliš mnoho rezervací. Zkuste to prosím za pár minut znovu." };
@@ -61,6 +66,10 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
   const data = await getPublicBusiness(slug);
   const service = data?.services.find((s) => s.id === serviceId);
   if (!data || !service) return { status: "error", error: DB_ERRORS.service_not_found };
+  const staffMember = staffId ? data.staff.find((m) => m.id === staffId) : null;
+  if (staffId && (!staffMember || !data.staffByService[service.id].includes(staffId))) {
+    return { status: "error", error: DB_ERRORS.staff_not_found };
+  }
 
   const supabase = createPublicClient();
   const { data: bookingId, error } = await supabase.rpc("create_booking", {
@@ -70,6 +79,7 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
     p_customer_name: name,
     p_customer_email: email,
     p_customer_phone: phone,
+    p_staff_id: staffId,
   });
 
   if (error || !bookingId) {
@@ -91,6 +101,7 @@ export async function createBooking(_prev: BookingState, formData: FormData): Pr
     serviceName: service.name,
     durationMinutes: service.duration_minutes,
     startsAt,
+    staffName: staffMember?.name ?? null,
     email,
     managePath: token ? `/rezervace/${bookingId}/${token}` : null,
   };

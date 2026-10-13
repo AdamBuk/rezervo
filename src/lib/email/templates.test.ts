@@ -77,3 +77,11 @@ describe("email templates", () => {
     expect(rescheduleEmail(data, "2026-10-13T07:00:00.000Z").text).toContain("13. října v 9:00");
   });
 });
+
+describe("staff", () => {
+  it("names the staff member for teams only", () => {
+    expect(bookingConfirmationEmail({ ...data, staffName: "Petra" }).text).toContain("Pracovník: Petra");
+    expect(ownerNotificationEmail({ ...data, staffName: "Petra" }).text).toContain("Pracovník: Petra");
+    expect(bookingConfirmationEmail(data).text).not.toContain("Pracovník");
+  });
+});

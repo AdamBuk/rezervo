@@ -45,6 +45,47 @@ export function computeAvailableSlots(input: SlotInput): Date[] {
   return slots;
 }
 
+/** Confirmed bookings of one staff member. */
+export type StaffBusy = { staffId: string; busy: Interval[] };
+
+export type StaffSlot = {
+  start: Date;
+  /** Staff members free for the whole slot, in the given (sort) order */
+  staffIds: string[];
+};
+
+export type StaffSlotInput = Omit<SlotInput, "busy"> & {
+  /** Staff members who perform the service, in sort order (the order create_booking() assigns "anyone" in) */
+  staff: readonly StaffBusy[];
+};
+
+/** Start times at which at least one of the staff members is free, with who is free. */
+export function computeStaffSlots(input: StaffSlotInput): StaffSlot[] {
+  const { staff, ...rest } = input;
+  const byStart = new Map<number, StaffSlot>();
+  for (const member of staff) {
+    for (const start of computeAvailableSlots({ ...rest, busy: member.busy })) {
+      const slot = byStart.get(start.getTime());
+      if (slot) slot.staffIds.push(member.staffId);
+      else byStart.set(start.getTime(), { start, staffIds: [member.staffId] });
+    }
+  }
+  return [...byStart.values()].sort((a, b) => a.start.getTime() - b.start.getTime());
+}
+
+/** Groups busy intervals (e.g. from get_staff_busy_intervals) by staff member, keeping `staffIds` order. */
+export function groupBusyByStaff(
+  staffIds: readonly string[],
+  rows: readonly { staff_id: string; starts_at: string; ends_at: string }[],
+): StaffBusy[] {
+  return staffIds.map((staffId) => ({
+    staffId,
+    busy: rows
+      .filter((r) => r.staff_id === staffId)
+      .map((r) => ({ start: new Date(r.starts_at), end: new Date(r.ends_at) })),
+  }));
+}
+
 export type DateRange = { starts_on: string; ends_on: string };
 
 /** Whether a calendar day ("YYYY-MM-DD") falls into any of the inclusive ranges. */
@@ -52,7 +93,7 @@ export function isClosedOn(date: string, closures: readonly DateRange[]): boolea
   return closures.some((c) => c.starts_on <= date && date <= c.ends_on);
 }
 
-export type NextAvailableInput = Omit<SlotInput, "date" | "opening"> & {
+export type NextAvailableInput = Omit<StaffSlotInput, "date" | "opening"> & {
   /** First and last calendar day to check, inclusive ("YYYY-MM-DD") */
   from: string;
   to: string;
@@ -64,7 +105,7 @@ export function findNextAvailableDate(input: NextAvailableInput): string | null 
   const { from, to, openingFor, ...rest } = input;
   for (let date = from; date <= to; date = addDays(date, 1)) {
     const opening = openingFor(date);
-    if (opening && computeAvailableSlots({ ...rest, date, opening }).length > 0) return date;
+    if (opening && computeStaffSlots({ ...rest, date, opening }).length > 0) return date;
   }
   return null;
 }

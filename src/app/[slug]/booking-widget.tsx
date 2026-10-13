@@ -13,6 +13,9 @@ import { AddToCalendar } from "./add-to-calendar";
 type Props = {
   business: PublicBusiness["business"];
   services: PublicBusiness["services"];
+  staff: PublicBusiness["staff"];
+  /** Active staff ids per service, in sort order */
+  staffByService: PublicBusiness["staffByService"];
   openWeekdays: number[];
   /** Upcoming closures (holidays), inclusive day ranges */
   closures: DateRange[];
@@ -46,8 +49,19 @@ export function BookingWidget(props: Props) {
   return <BookingFlow key={round} {...props} onRestart={() => setRound((r) => r + 1)} />;
 }
 
-function BookingFlow({ business, services, openWeekdays, closures, today, onRestart }: Props & { onRestart: () => void }) {
+function BookingFlow({
+  business,
+  services,
+  staff,
+  staffByService,
+  openWeekdays,
+  closures,
+  today,
+  onRestart,
+}: Props & { onRestart: () => void }) {
   const [serviceId, setServiceId] = useState<string | null>(services.length === 1 ? services[0].id : null);
+  // null = anyone who performs the service (the first free one is assigned on booking)
+  const [staffId, setStaffId] = useState<string | null>(null);
   const firstOpenDay = useMemo(() => {
     for (let i = 0; i <= BOOKING_HORIZON_DAYS; i++) {
       const d = addDays(today, i);
@@ -76,7 +90,10 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
   }, { status: "idle" });
 
   const service = services.find((s) => s.id === serviceId);
-  const requestKey = serviceId ? `${serviceId}|${date}|${reloadKey}` : null;
+  const serviceStaff = service ? staff.filter((m) => staffByService[service.id]?.includes(m.id)) : [];
+  // A staff member chosen for another service may not do this one; then it's "anyone" again.
+  const chosenStaff = serviceStaff.find((m) => m.id === staffId) ?? null;
+  const requestKey = serviceId ? `${serviceId}|${chosenStaff?.id ?? "any"}|${date}|${reloadKey}` : null;
   const current = result && result.key === requestKey ? result : null;
   const slot = selection && selection.key === requestKey ? selection.slot : null;
   const lastBookableDay = addDays(today, BOOKING_HORIZON_DAYS);
@@ -91,6 +108,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
     if (!requestKey || !serviceId) return;
     const controller = new AbortController();
     const params = new URLSearchParams({ slug: business.slug, service: serviceId, date });
+    if (chosenStaff) params.set("staff", chosenStaff.id);
     fetch(`/api/slots?${params}`, { signal: controller.signal })
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((data: { slots: string[]; nextAvailable: string | null }) => {
@@ -106,7 +124,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
         if (!controller.signal.aborted) setResult({ key: requestKey, failed: true });
       });
     return () => controller.abort();
-  }, [business.slug, serviceId, date, requestKey, today]);
+  }, [business.slug, serviceId, chosenStaff, date, requestKey, today]);
 
   if (state.status === "success") {
     return (
@@ -119,6 +137,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
         <h2 className="headline mt-5 text-3xl sm:text-4xl">Rezervace je potvrzená</h2>
         <p className="mt-2 text-stone-600">
           <strong className="text-stone-900">{state.serviceName}</strong>
+          {state.staffName && <> · {state.staffName}</>}
           <br />
           <span className="first-letter:uppercase">
             {formatInTimeZone(state.startsAt, business.timezone, { weekday: "long", day: "numeric", month: "long" })} v{" "}
@@ -236,6 +255,34 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
           </div>
         </div>
 
+        {serviceStaff.length > 1 && (
+          <div className="mt-3">
+            <p id="staff-label" className="text-sm font-medium text-stone-600">
+              Kdo vás obslouží?
+            </p>
+            <div role="group" aria-labelledby="staff-label" className="mt-2 flex flex-wrap gap-1.5">
+              {[{ id: null, name: "Kdokoli" }, ...serviceStaff].map((m) => {
+                const selected = (chosenStaff?.id ?? null) === m.id;
+                return (
+                  <button
+                    key={m.id ?? "any"}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setStaffId(m.id)}
+                    className={`rounded-full border px-4 py-2 text-sm font-semibold transition-[color,background-color,border-color,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.96] motion-reduce:active:scale-100 ${
+                      selected
+                        ? "border-accent bg-accent text-white shadow-(--shadow-accent)"
+                        : "border-edge bg-surface hover:border-brand-200 hover:bg-brand-50/40"
+                    }`}
+                  >
+                    {m.name}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="mt-3 grid grid-cols-7 gap-1.5">
           {days.map((d) => {
             const weekday = WEEKDAYS[isoWeekday(d) - 1];
@@ -336,6 +383,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
         <form action={formAction} className="mt-3 space-y-4">
           <input type="hidden" name="slug" value={business.slug} />
           <input type="hidden" name="service_id" value={serviceId ?? ""} />
+          <input type="hidden" name="staff_id" value={chosenStaff?.id ?? ""} />
           <input type="hidden" name="starts_at" value={slot ?? ""} />
           <div className="hidden" aria-hidden>
             <label>
@@ -407,7 +455,8 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
           {service && slot && (
             <div className="flex animate-[rise-in_220ms_var(--ease-out)] flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-2xl bg-brand-50 px-5 py-4 motion-reduce:animate-none">
               <span>
-                <span className="font-semibold">{service.name}</span> ·{" "}
+                <span className="font-semibold">{service.name}</span>
+                {chosenStaff && <> · {chosenStaff.name}</>} ·{" "}
                 <span className="first-letter:uppercase">
                   {formatInTimeZone(slot, business.timezone, { weekday: "short", day: "numeric", month: "numeric" })}
                 </span>{" "}

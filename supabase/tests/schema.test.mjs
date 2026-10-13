@@ -24,8 +24,33 @@ await db.exec(`
   grant usage on schema public to anon, authenticated, service_role;
   set search_path = public, extensions;
 `);
-for (const m of migrations) await db.exec(readFileSync(m, "utf8"));
+// Existing data must survive the staff migration: seed a legacy business right before it.
+const legacyOwner = "44444444-4444-4444-4444-444444444444";
+for (const m of migrations) {
+  if (m.endsWith("_staff.sql")) {
+    await db.exec(`
+      insert into auth.users values ('${legacyOwner}', 'legacy@x.cz');
+      insert into businesses (id, owner_id, name, slug, notification_email)
+        values ('55555555-5555-5555-5555-555555555555', '${legacyOwner}', 'Legacy', 'legacy-biz', 'legacy@x.cz');
+      insert into services (id, business_id, name, duration_minutes, price_czk)
+        values ('66666666-6666-6666-6666-666666666666', '55555555-5555-5555-5555-555555555555', 'Střih', 30, 300);
+      insert into bookings (business_id, service_id, customer_name, customer_email, customer_phone, starts_at, ends_at)
+        values ('55555555-5555-5555-5555-555555555555', '66666666-6666-6666-6666-666666666666', 'Eva', 'e@x.cz', '777777777',
+                now() + interval '1 day', now() + interval '1 day 30 minutes');
+    `);
+  }
+  await db.exec(readFileSync(m, "utf8"));
+}
 console.log("migrations ok");
+{
+  const { rows } = await db.query(`
+    select st.name, (select count(*) from staff_services ss where ss.staff_id = st.id)::int as services,
+           (select count(*) from bookings b where b.staff_id = st.id)::int as bookings
+    from staff st where st.business_id = '55555555-5555-5555-5555-555555555555'`);
+  const ok = rows.length === 1 && rows[0].services === 1 && rows[0].bookings === 1;
+  console.log(ok ? "ok  " : "FAIL", "legacy data migrated to a default staff member", JSON.stringify(rows));
+  if (!ok) process.exitCode = 1;
+}
 
 let failures = 0;
 async function expect(label, fn, expected) {
@@ -48,13 +73,17 @@ const { rows: [svc] } = await db.query(
   `insert into services (business_id,name,duration_minutes,price_czk) values ($1,'Střih',60,500) returning id`, [biz.id]);
 // Open every day 09:00-17:00
 await db.query(`insert into opening_hours select $1, d, '09:00', '17:00' from generate_series(1,7) d`, [biz.id]);
+// One staff member doing the service (a second one is added in the staff section below)
+const { rows: [jana] } = await db.query(
+  `insert into staff (business_id,name,sort_order) values ($1,'Jana',0) returning id`, [biz.id]);
+await db.query(`insert into staff_services values ($1,$2)`, [jana.id, svc.id]);
 
 // A Prague-local 10:00 slot a few days ahead
 const { rows: [{ d }] } = await db.query(
   `select ((now() at time zone 'Europe/Prague')::date + 3 + time '10:00') at time zone 'Europe/Prague' as d`);
 const at = (offsetMin) => new Date(new Date(d).getTime() + offsetMin * 60000).toISOString();
-const book = (start, sid = svc.id) => db.query(
-  `select create_booking($1,$2,$3,'Jan Novák','Jan@Example.cz',' 777123456 ') as id`, [biz.id, sid, start]);
+const book = (start, sid = svc.id, staffId = null) => db.query(
+  `select create_booking($1,$2,$3,'Jan Novák','Jan@Example.cz',' 777123456 ',$4) as id`, [biz.id, sid, start, staffId]);
 
 await db.exec("set role anon");
 await expect("anon books 10:00", () => book(at(0)).then(r => r.rows[0]));
@@ -72,8 +101,11 @@ await expect("anon cannot read bookings", () => db.query("select * from bookings
 await expect("anon cannot insert bookings directly", () => db.query(
   `insert into bookings (business_id,service_id,customer_name,customer_email,customer_phone,starts_at,ends_at)
    values ($1,$2,'x','a@b.cz','777777777',now(),now()+interval '1h')`, [biz.id, svc.id]), /permission denied/);
-await expect("anon busy intervals", () => db.query(
-  "select * from get_busy_intervals($1, now(), now() + interval '10 days')", [biz.id]).then(r => r.rows.length));
+await expect("anon busy intervals per staff", () => db.query(
+  "select staff_id from get_staff_busy_intervals($1, now(), now() + interval '10 days')", [biz.id]).then(r => {
+    if (!r.rows.length || r.rows.some((x) => x.staff_id !== jana.id)) throw new Error(JSON.stringify(r.rows));
+    return r.rows.length;
+  }));
 await expect("anon reads services", () => db.query("select count(*) from services").then(r => r.rows[0]));
 await expect("anon cannot insert service", () => db.query(
   "insert into services (business_id,name,duration_minutes,price_czk) values ($1,'x',30,1)", [biz.id]), /permission denied|row-level/);
@@ -174,5 +206,61 @@ await expect("anon cannot read closure note", () => db.query("select note from c
 await expect("booking on closed day rejected", () => book(at4), /business_closed/);
 await db.exec("reset role");
 
+// --- Staff ------------------------------------------------------------------
+const slot = at(180); // 13:00 local, free so far
+const { rows: [petr] } = await db.query(
+  `insert into staff (business_id,name,sort_order) values ($1,'Petr',1) returning id`, [biz.id]);
+const { rows: [svc2] } = await db.query(
+  `insert into services (business_id,name,duration_minutes,price_czk) values ($1,'Vousy',30,200) returning id`, [biz.id]);
+await db.query(`insert into staff_services values ($1,$2),($3,$4)`, [petr.id, svc.id, jana.id, svc2.id]);
+const staffOf = (id) => db.query("select staff_id from bookings where id = $1", [id]).then(r => r.rows[0].staff_id);
+
+await db.exec("set role anon");
+const first = await book(slot).then(r => r.rows[0].id);
+const second = await book(slot).then(r => r.rows[0].id);
+await expect("anyone: third booking at same slot taken", () => book(slot), /slot_taken/);
+await expect("specific busy staff -> slot_taken", () => book(at(240), svc.id, jana.id).then(() => book(at(240), svc.id, jana.id)), /slot_taken/);
+await expect("specific free staff books", () => book(at(240), svc.id, petr.id).then(r => r.rows[0]));
+await expect("staff not doing service", () => book(at(300), svc2.id, petr.id), /staff_not_found/);
+await expect("unknown staff", () => book(at(300), svc.id, "33333333-3333-3333-3333-333333333333"), /staff_not_found/);
+await expect("anon reads staff", () => db.query("select id, name from staff").then(r => r.rows.length));
+await expect("anon cannot add staff", () => db.query(
+  "insert into staff (business_id,name) values ($1,'x')", [biz.id]), /permission denied|row-level/);
+await db.exec("reset role");
+await expect("anyone: first booking goes to Jana (sort order)", async () => {
+  if ((await staffOf(first)) !== jana.id) throw new Error("expected Jana");
+  return "Jana";
+});
+await expect("anyone: same slot goes to Petr", async () => {
+  if ((await staffOf(second)) !== petr.id) throw new Error("expected Petr");
+  return "Petr";
+});
+
+await db.exec(`set role authenticated; set request.jwt.claim.sub = '${owner}'`);
+await expect("owner deactivates Petr", () => db.query("update staff set is_active=false where id=$1", [petr.id]).then(r => r.affectedRows));
+await expect("owner cannot delete staff with bookings", () => db.query("delete from staff where id=$1", [petr.id]), /foreign key/);
+await db.exec("reset role");
+await db.exec("set role anon");
+await expect("inactive staff can't be booked", () => book(at(300), svc.id, petr.id), /staff_not_found/);
+await db.exec("reset role");
+
+await db.exec(`set role authenticated; set request.jwt.claim.sub = '${other}'`);
+const { rows: [biz2] } = await db.query(
+  `insert into businesses (owner_id,name,slug,notification_email) values ($1,'Jiny','jiny-biz','p@x.cz') returning id`, [other]);
+const { rows: [foreignStaff] } = await db.query(
+  `insert into staff (business_id,name) values ($1,'Cizí') returning id`, [biz2.id]);
+await expect("other user cannot add staff to foreign business", () => db.query(
+  "insert into staff (business_id,name) values ($1,'x')", [biz.id]), /row-level/);
+await expect("other user cannot link own staff to foreign service", () => db.query(
+  "insert into staff_services values ($1,$2)", [foreignStaff.id, svc.id]), /different businesses|row-level/);
+await db.exec("reset role");
+
+await db.exec(`set role authenticated; set request.jwt.claim.sub = '${owner}'`);
+await expect("owner cannot move booking to foreign staff", () => db.query(
+  "update bookings set staff_id=$1 where id=$2", [foreignStaff.id, first]), /staff_not_found/);
+await expect("owner moves Petr's booking onto Jana's same slot -> overlap", () => db.query(
+  "update bookings set staff_id=$1 where id=$2", [jana.id, second]), /bookings_no_overlap/);
+await db.exec("reset role");
+
 console.log(failures ? `\n${failures} FAILURES` : "\nALL PASSED");
-process.exit(failures ? 1 : 0);
+process.exit(failures || process.exitCode ? 1 : 0);

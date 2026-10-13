@@ -9,16 +9,20 @@ type Props = {
   bookingId: string;
   defaultDate: string;
   defaultTime: string;
+  defaultStaffId: string;
+  /** Staff the booking can be moved to; the picker shows only with more than one */
+  staffOptions: { id: string; name: string }[];
   stepMinutes: number;
 };
 
-export function BookingActions({ bookingId, defaultDate, defaultTime, stepMinutes }: Props) {
+export function BookingActions({ bookingId, defaultDate, defaultTime, defaultStaffId, staffOptions, stepMinutes }: Props) {
   const [moveState, moveAction] = useActionState(rescheduleBooking, undefined);
   const [cancelState, cancelAction] = useActionState(cancelBooking, undefined);
   const [confirmCancel, setConfirmCancel] = useState(false);
   // Controlled, so React's automatic form reset after the action doesn't wipe the owner's input on error.
   const [date, setDate] = useState(defaultDate);
   const [time, setTime] = useState(defaultTime);
+  const [staffId, setStaffId] = useState(defaultStaffId);
 
   return (
     <div className="space-y-6">
@@ -48,6 +52,22 @@ export function BookingActions({ bookingId, defaultDate, defaultTime, stepMinute
             />
           </div>
         </div>
+        {staffOptions.length > 1 ? (
+          <div>
+            <label htmlFor="move-staff" className="label">
+              Pracovník
+            </label>
+            <select id="move-staff" name="staff_id" value={staffId} onChange={(e) => setStaffId(e.target.value)} className="input">
+              {staffOptions.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <input type="hidden" name="staff_id" value={staffId} />
+        )}
         <FormMessage state={moveState} />
         <SubmitButton pendingText="Přesouvám…">Přesunout</SubmitButton>
       </form>

@@ -11,6 +11,7 @@ export type ApiErrorCode =
   | "payload_too_large"
   | "not_found"
   | "service_not_found"
+  | "staff_not_found"
   | "booking_not_found"
   | "date_out_of_range"
   | "slot_in_past"

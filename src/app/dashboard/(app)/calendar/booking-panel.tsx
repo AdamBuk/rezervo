@@ -11,14 +11,29 @@ type Props = { bookingId: string; business: Business; closeHref: string };
 export async function BookingPanel({ bookingId, business, closeHref }: Props) {
   const isUuid = /^[0-9a-f-]{36}$/i.test(bookingId);
   const supabase = await createClient();
-  const { data: booking } = isUuid
-    ? await supabase
-        .from("bookings")
-        .select("*, services(name, duration_minutes, price_czk)")
-        .eq("id", bookingId)
-        .eq("business_id", business.id)
-        .maybeSingle()
-    : { data: null };
+  const [{ data: booking }, { data: staff }] = await Promise.all([
+    isUuid
+      ? supabase
+          .from("bookings")
+          .select("*, services(name, duration_minutes, price_czk)")
+          .eq("id", bookingId)
+          .eq("business_id", business.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("staff")
+      .select("id, name, is_active, staff_services(service_id)")
+      .eq("business_id", business.id)
+      .order("sort_order")
+      .order("created_at"),
+  ]);
+  const assigned = booking ? (staff ?? []).find((m) => m.id === booking.staff_id) : undefined;
+  // Who the booking can be moved to: active staff doing the service, plus the current one.
+  const staffOptions = booking
+    ? (staff ?? [])
+        .filter((m) => m.id === booking.staff_id || (m.is_active && m.staff_services.some((l) => l.service_id === booking.service_id)))
+        .map((m) => ({ id: m.id, name: m.name }))
+    : [];
 
   const tz = business.timezone;
   const local = booking ? toZoned(new Date(booking.starts_at), tz) : null;
@@ -60,6 +75,12 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
             </div>
 
             <dl className="space-y-3 rounded-xl border border-edge bg-sand-50/60 p-4 text-sm">
+              {(staff ?? []).length > 1 && assigned && (
+                <div>
+                  <dt className="text-stone-500">Pracovník</dt>
+                  <dd className="font-medium">{assigned.name}</dd>
+                </div>
+              )}
               <div>
                 <dt className="text-stone-500">Zákazník</dt>
                 <dd className="font-medium">{booking.customer_name}</dd>
@@ -92,6 +113,8 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
                 bookingId={booking.id}
                 defaultDate={local.date}
                 defaultTime={minutesToTime(local.minutes)}
+                defaultStaffId={booking.staff_id}
+                staffOptions={staffOptions}
                 stepMinutes={business.slot_step_minutes}
               />
             )}

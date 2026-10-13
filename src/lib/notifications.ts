@@ -15,7 +15,7 @@ import { addDays, todayInTimeZone, toZoned } from "@/lib/time";
 import { bookingManageUrl, getBookingLinkSecret } from "@/lib/booking-link";
 
 const BOOKING_SELECT =
-  "id, starts_at, customer_name, customer_email, customer_phone, services(name, duration_minutes, price_czk), businesses(name, slug, address, phone, timezone, notification_email)" as const;
+  "id, starts_at, customer_name, customer_email, customer_phone, services(name, duration_minutes, price_czk), staff(name), businesses(name, slug, address, phone, timezone, notification_email, staff(is_active))" as const;
 
 type BookingWithRelations = {
   id: string;
@@ -24,6 +24,7 @@ type BookingWithRelations = {
   customer_email: string;
   customer_phone: string;
   services: { name: string; duration_minutes: number; price_czk: number } | null;
+  staff: { name: string } | null;
   businesses: {
     name: string;
     slug: string;
@@ -31,6 +32,7 @@ type BookingWithRelations = {
     phone: string | null;
     timezone: string;
     notification_email: string;
+    staff: { is_active: boolean }[];
   } | null;
 };
 
@@ -41,6 +43,7 @@ function toEmailData(b: BookingWithRelations, siteUrl: string): BookingEmailData
     customerEmail: b.customer_email,
     customerPhone: b.customer_phone,
     serviceName: b.services.name,
+    staffName: b.businesses.staff.filter((m) => m.is_active).length > 1 ? (b.staff?.name ?? null) : null,
     durationMinutes: b.services.duration_minutes,
     priceCzk: b.services.price_czk,
     startsAt: b.starts_at,

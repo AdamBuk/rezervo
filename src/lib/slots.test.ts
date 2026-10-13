@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { computeAvailableSlots, findNextAvailableDate, isClosedOn } from "./slots";
+import { computeAvailableSlots, computeStaffSlots, findNextAvailableDate, groupBusyByStaff, isClosedOn } from "./slots";
 import { addDays, isoWeekday, startOfWeek, toZoned, zonedTimeToUtc } from "./time";
 
 const TZ = "Europe/Prague";
@@ -83,7 +83,7 @@ describe("findNextAvailableDate", () => {
     timeZone: TZ,
     durationMinutes: 60,
     stepMinutes: 15,
-    busy: [] as { start: Date; end: Date }[],
+    staff: [{ staffId: "a", busy: [] as { start: Date; end: Date }[] }],
     now: new Date("2026-10-01T00:00:00Z"),
     openingFor: weekdaysOnly,
   };
@@ -95,7 +95,18 @@ describe("findNextAvailableDate", () => {
 
   it("skips fully booked days", () => {
     const busy = [{ start: zonedTimeToUtc("2026-10-19", 9 * 60, TZ), end: zonedTimeToUtc("2026-10-19", 10 * 60, TZ) }];
-    expect(findNextAvailableDate({ ...input, busy, from: "2026-10-19", to: "2026-10-31" })).toBe("2026-10-20");
+    expect(findNextAvailableDate({ ...input, staff: [{ staffId: "a", busy }], from: "2026-10-19", to: "2026-10-31" })).toBe(
+      "2026-10-20",
+    );
+  });
+
+  it("a day is free when any staff member is", () => {
+    const busy = [{ start: zonedTimeToUtc("2026-10-19", 9 * 60, TZ), end: zonedTimeToUtc("2026-10-19", 10 * 60, TZ) }];
+    const staff = [
+      { staffId: "a", busy },
+      { staffId: "b", busy: [] },
+    ];
+    expect(findNextAvailableDate({ ...input, staff, from: "2026-10-19", to: "2026-10-31" })).toBe("2026-10-19");
   });
 
   it("returns null when nothing is free in the range", () => {
@@ -120,5 +131,55 @@ describe("isClosedOn", () => {
     expect(isClosedOn("2026-12-23", closures)).toBe(false);
     expect(isClosedOn("2026-12-27", closures)).toBe(false);
     expect(isClosedOn("2026-12-24", [])).toBe(false);
+  });
+});
+
+describe("computeStaffSlots", () => {
+  const day = "2026-10-19";
+  const at = (h: number, m = 0) => zonedTimeToUtc(day, h * 60 + m, TZ);
+  const base = {
+    date: day,
+    timeZone: TZ,
+    opening: { opens_at: "09:00:00", closes_at: "11:00:00" },
+    durationMinutes: 60,
+    stepMinutes: 30,
+    now: new Date("2026-10-01T00:00:00Z"),
+  };
+
+  it("offers a slot when at least one staff member is free, listing who in staff order", () => {
+    const slots = computeStaffSlots({
+      ...base,
+      staff: [
+        { staffId: "jana", busy: [{ start: at(9), end: at(10) }] },
+        { staffId: "petr", busy: [{ start: at(10), end: at(11) }] },
+      ],
+    });
+    expect(slots.map((s) => [hhmm(s.start), s.staffIds])).toEqual([
+      ["09:00", ["petr"]],
+      ["10:00", ["jana"]],
+    ]);
+  });
+
+  it("returns nothing without staff", () => {
+    expect(computeStaffSlots({ ...base, staff: [] })).toEqual([]);
+  });
+
+  it("keeps staff order when both are free", () => {
+    const slots = computeStaffSlots({ ...base, staff: [{ staffId: "b", busy: [] }, { staffId: "a", busy: [] }] });
+    expect(slots[0].staffIds).toEqual(["b", "a"]);
+  });
+});
+
+describe("groupBusyByStaff", () => {
+  it("groups rows and keeps staff without bookings", () => {
+    const rows = [
+      { staff_id: "a", starts_at: "2026-10-19T08:00:00Z", ends_at: "2026-10-19T09:00:00Z" },
+      { staff_id: "x", starts_at: "2026-10-19T08:00:00Z", ends_at: "2026-10-19T09:00:00Z" },
+    ];
+    const grouped = groupBusyByStaff(["a", "b"], rows);
+    expect(grouped.map((g) => [g.staffId, g.busy.length])).toEqual([
+      ["a", 1],
+      ["b", 0],
+    ]);
   });
 });

@@ -6,6 +6,7 @@ import {
   type ApiBookingRecord,
   type ApiBusiness,
   type ApiService,
+  type ApiStaff,
   type ApiStore,
   type CreateBookingResult,
   type RateLimiter,
@@ -23,6 +24,8 @@ const SERVICE: ApiService = {
   duration_minutes: 60,
   price_czk: 450,
 };
+const JANA = "55555555-5555-4555-8555-555555555555";
+const PETR = "66666666-6666-4666-8666-666666666666";
 const BOOKING_ID = "22222222-2222-4222-8222-222222222222";
 const OTHER_BOOKING_ID = "33333333-3333-4333-8333-333333333333";
 const BASE = "https://rezervo.test/api/v1";
@@ -31,6 +34,8 @@ type Fixture = {
   key: string;
   store: ApiStore;
   bookings: Map<string, ApiBookingRecord & { businessId: string }>;
+  /** Active staff of BIZ in sort order */
+  staff: ApiStaff[];
   created: CreateBookingResult[];
   nextCreateCode: string | null;
   background: Array<() => Promise<unknown>>;
@@ -48,6 +53,7 @@ function setup() {
     key,
     store: undefined as unknown as ApiStore,
     bookings: new Map(),
+    staff: [{ id: JANA, name: "Jana", service_ids: [SERVICE.id] }],
     created: [],
     nextCreateCode: null,
     background: [],
@@ -86,19 +92,37 @@ function setup() {
     async isClosedOn(businessId, date) {
       return businessId === BIZ.id && f.closures.includes(date);
     },
-    async getBusyIntervals(businessId, from, to) {
-      return [...f.bookings.values()]
-        .filter((b) => b.businessId === businessId && b.status === "confirmed")
-        .map((b) => ({ start: new Date(b.starts_at), end: new Date(b.ends_at) }))
-        .filter((b) => b.start < to && b.end > from);
+    async listStaff(businessId) {
+      check();
+      return businessId === BIZ.id ? f.staff : [];
     },
-    async createBooking({ businessId, serviceId, startsAt, customer }) {
+    async getStaffBusy(businessId, staffIds, from, to) {
+      return staffIds.map((staffId) => ({
+        staffId,
+        busy: [...f.bookings.values()]
+          .filter((b) => b.businessId === businessId && b.status === "confirmed" && b.staff?.id === staffId)
+          .map((b) => ({ start: new Date(b.starts_at), end: new Date(b.ends_at) }))
+          .filter((b) => b.start < to && b.end > from),
+      }));
+    },
+    async createBooking({ businessId, serviceId, staffId, startsAt, customer }) {
       if (f.nextCreateCode) return { ok: false, code: f.nextCreateCode };
       const end = new Date(startsAt.getTime() + SERVICE.duration_minutes * 60_000);
-      const clash = [...f.bookings.values()].some(
-        (b) => b.businessId === businessId && b.status === "confirmed" && new Date(b.starts_at) < end && new Date(b.ends_at) > startsAt,
+      // Mirrors create_booking(): the requested staff member, or the first free one in sort order.
+      const candidates = f.staff.filter((m) => m.service_ids.includes(serviceId) && (staffId === null || m.id === staffId));
+      if (!candidates.length) return { ok: false, code: staffId ? "staff_not_found" : "service_not_found" };
+      const member = candidates.find(
+        (m) =>
+          ![...f.bookings.values()].some(
+            (b) =>
+              b.businessId === businessId &&
+              b.status === "confirmed" &&
+              b.staff?.id === m.id &&
+              new Date(b.starts_at) < end &&
+              new Date(b.ends_at) > startsAt,
+          ),
       );
-      if (clash) return { ok: false, code: "slot_taken" };
+      if (!member) return { ok: false, code: "slot_taken" };
       const id = `44444444-4444-4444-8444-${String(f.created.length).padStart(12, "0")}`;
       f.bookings.set(id, {
         id,
@@ -111,6 +135,7 @@ function setup() {
         customer_phone: customer.phone,
         created_at: NOW.toISOString(),
         service: { id: serviceId, name: SERVICE.name, duration_minutes: 60, price_czk: 450 },
+        staff: { id: member.id, name: member.name },
       });
       const result = { ok: true as const, id };
       f.created.push(result);
@@ -129,6 +154,7 @@ function setup() {
         customer_phone: b.customer_phone,
         created_at: b.created_at,
         service: b.service,
+        staff: b.staff,
       };
     },
     async cancelBooking(businessId, id) {
@@ -185,7 +211,14 @@ async function json(res: Response) {
   return (await res.json()) as { data?: Record<string, unknown> & unknown[]; error?: { code: string; details?: unknown }; meta?: unknown };
 }
 
-function seedBooking(f: Fixture, id: string, businessId: string, startsAt: string, status: "confirmed" | "cancelled" = "confirmed") {
+function seedBooking(
+  f: Fixture,
+  id: string,
+  businessId: string,
+  startsAt: string,
+  status: "confirmed" | "cancelled" = "confirmed",
+  staff = { id: JANA, name: "Jana" },
+) {
   const start = new Date(startsAt);
   f.bookings.set(id, {
     id,
@@ -198,6 +231,7 @@ function seedBooking(f: Fixture, id: string, businessId: string, startsAt: strin
     customer_phone: "777888999",
     created_at: NOW.toISOString(),
     service: { id: SERVICE.id, name: SERVICE.name, duration_minutes: 60, price_czk: 450 },
+    staff,
   });
 }
 
@@ -284,7 +318,7 @@ describe("GET /services", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     const body = await json(res);
     expect(body.data).toEqual([
-      { id: SERVICE.id, name: "Pánský střih", description: null, duration_minutes: 60, price_czk: 450 },
+      { id: SERVICE.id, name: "Pánský střih", description: null, duration_minutes: 60, price_czk: 450, staff_ids: [JANA] },
     ]);
     expect(body.meta).toEqual({ business: { name: BIZ.name, slug: "u-nuzek", timezone: "Europe/Prague" } });
 
@@ -303,7 +337,12 @@ describe("GET /slots", () => {
     const list = data!.slots as Array<{ starts_at: string; ends_at: string; local_time: string }>;
     // 09:00 … 16:00 every 15 minutes
     expect(list).toHaveLength(29);
-    expect(list[0]).toEqual({ starts_at: "2026-10-13T07:00:00.000Z", ends_at: "2026-10-13T08:00:00.000Z", local_time: "09:00" });
+    expect(list[0]).toEqual({
+      starts_at: "2026-10-13T07:00:00.000Z",
+      ends_at: "2026-10-13T08:00:00.000Z",
+      local_time: "09:00",
+      staff_ids: [JANA],
+    });
     expect(list.at(-1)?.local_time).toBe("16:00");
     expect(data!.closed).toBe(false);
     expect(data!.timezone).toBe("Europe/Prague");
@@ -566,5 +605,91 @@ describe("POST /bookings/{id}/cancel", () => {
     const res = await ctx.api.cancelBooking(req(`/bookings/${BOOKING_ID}/cancel`, { method: "POST" }), BOOKING_ID);
     expect(res.status).toBe(401);
     expect(ctx.f.bookings.get(BOOKING_ID)?.status).toBe("confirmed");
+  });
+});
+
+describe("staff", () => {
+  const twoStaff = () => {
+    ctx.f.staff = [
+      { id: JANA, name: "Jana", service_ids: [SERVICE.id] },
+      { id: PETR, name: "Petr", service_ids: [SERVICE.id] },
+    ];
+  };
+
+  it("GET /staff lists active staff with their services", async () => {
+    twoStaff();
+    const res = await ctx.api.listStaff(req("/staff", { key: ctx.f.key }));
+    expect(res.status).toBe(200);
+    expect((await json(res)).data).toEqual([
+      { id: JANA, name: "Jana", service_ids: [SERVICE.id] },
+      { id: PETR, name: "Petr", service_ids: [SERVICE.id] },
+    ]);
+    expect((await json(await ctx.api.listStaff(req("/staff", { key: ctx.otherKey })))).data).toEqual([]);
+  });
+
+  it("hides services nobody performs", async () => {
+    ctx.f.staff = [];
+    expect((await json(await ctx.api.listServices(req("/services", { key: ctx.f.key })))).data).toEqual([]);
+    const slots = await ctx.api.getSlots(req(`/slots?service_id=${SERVICE.id}&date=2026-10-13`, { key: ctx.f.key }));
+    expect(slots.status).toBe(404);
+  });
+
+  it("a slot stays free while another staff member is available", async () => {
+    twoStaff();
+    seedBooking(ctx.f, BOOKING_ID, BIZ.id, "2026-10-13T10:00:00+02:00");
+    const { data } = await json(await ctx.api.getSlots(req(`/slots?service_id=${SERVICE.id}&date=2026-10-13`, { key: ctx.f.key })));
+    const list = data!.slots as Array<{ local_time: string; staff_ids: string[] }>;
+    expect(list).toHaveLength(29);
+    expect(list.find((s) => s.local_time === "10:00")?.staff_ids).toEqual([PETR]);
+    expect(list.find((s) => s.local_time === "09:00")?.staff_ids).toEqual([JANA, PETR]);
+  });
+
+  it("filters slots by staff_id", async () => {
+    twoStaff();
+    seedBooking(ctx.f, BOOKING_ID, BIZ.id, "2026-10-13T10:00:00+02:00");
+    const res = await ctx.api.getSlots(req(`/slots?service_id=${SERVICE.id}&date=2026-10-13&staff_id=${JANA}`, { key: ctx.f.key }));
+    const { data } = await json(res);
+    expect(data!.staff_id).toBe(JANA);
+    expect((data!.slots as Array<{ local_time: string }>).map((s) => s.local_time)).not.toContain("10:00");
+  });
+
+  it("rejects unknown or invalid staff_id in slots", async () => {
+    const unknown = await ctx.api.getSlots(req(`/slots?service_id=${SERVICE.id}&date=2026-10-13&staff_id=${PETR}`, { key: ctx.f.key }));
+    expect(unknown.status).toBe(404);
+    expect((await json(unknown)).error?.code).toBe("staff_not_found");
+    const invalid = await ctx.api.getSlots(req(`/slots?service_id=${SERVICE.id}&date=2026-10-13&staff_id=x`, { key: ctx.f.key }));
+    expect(invalid.status).toBe(400);
+  });
+
+  it("books anyone and returns the assigned staff member", async () => {
+    twoStaff();
+    seedBooking(ctx.f, BOOKING_ID, BIZ.id, "2026-10-13T10:00:00+02:00");
+    const res = await ctx.api.createBooking(req("/bookings", { method: "POST", key: ctx.f.key, body: validBooking }));
+    expect(res.status).toBe(201);
+    expect((await json(res)).data!.staff).toEqual({ id: PETR, name: "Petr" });
+  });
+
+  it("books a specific staff member or reports their slot as taken", async () => {
+    twoStaff();
+    seedBooking(ctx.f, BOOKING_ID, BIZ.id, "2026-10-13T10:00:00+02:00");
+    const taken = await ctx.api.createBooking(
+      req("/bookings", { method: "POST", key: ctx.f.key, body: { ...validBooking, staff_id: JANA } }),
+    );
+    expect(taken.status).toBe(409);
+    const ok = await ctx.api.createBooking(req("/bookings", { method: "POST", key: ctx.f.key, body: { ...validBooking, staff_id: PETR } }));
+    expect(ok.status).toBe(201);
+    expect((await json(ok)).data!.staff).toEqual({ id: PETR, name: "Petr" });
+  });
+
+  it("maps staff_not_found and validates staff_id", async () => {
+    const missing = await ctx.api.createBooking(
+      req("/bookings", { method: "POST", key: ctx.f.key, body: { ...validBooking, staff_id: PETR } }),
+    );
+    expect(missing.status).toBe(404);
+    expect((await json(missing)).error?.code).toBe("staff_not_found");
+    const invalid = await ctx.api.createBooking(
+      req("/bookings", { method: "POST", key: ctx.f.key, body: { ...validBooking, staff_id: 42 } }),
+    );
+    expect(invalid.status).toBe(400);
   });
 });
