@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useRef, useState } from "react";
 import { SubmitButton } from "@/components/submit-button";
 import { FormMessage } from "@/components/form-message";
 import { ConfirmSubmit } from "@/components/confirm-submit";
@@ -76,15 +76,20 @@ function ServiceFields({ service }: { service?: Service }) {
 export function NewServiceForm() {
   const [state, formAction] = useActionState(createService, undefined);
   const formRef = useRef<HTMLFormElement>(null);
+  // The result message hides once the owner starts on the next service, or a few seconds after success.
+  const [dismissed, setDismissed] = useState<typeof state>(undefined);
 
   useEffect(() => {
-    if (state?.success) formRef.current?.reset();
+    if (!state?.success) return;
+    formRef.current?.reset();
+    const timer = setTimeout(() => setDismissed(state), 4000);
+    return () => clearTimeout(timer);
   }, [state]);
 
   return (
-    <form ref={formRef} action={formAction} className="@container space-y-4">
+    <form ref={formRef} action={formAction} onInput={() => setDismissed(state)} className="@container space-y-4">
       <ServiceFields />
-      <FormMessage state={state} />
+      <FormMessage state={dismissed === state ? undefined : state} />
       <SubmitButton pendingText="Přidávám…">Přidat službu</SubmitButton>
     </form>
   );

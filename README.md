@@ -19,7 +19,7 @@ Rezervační systém pro kadeřnictví, fyzioterapie, masáže a podobné malé 
 curl -H "Authorization: Bearer <API klíč>" https://rezervo.bukac-adam.workers.dev/api/v1/services
 ```
 
-<sub>Demo data se mohou kdykoli obnovit (`npm run seed`); testovací účet je sdílený, nevyplňujte skutečné osobní údaje.</sub>
+<sub>Testovací účet je sdílený, nevyplňujte skutečné osobní údaje. V ukázkovém účtu nelze měnit heslo, adresu stránky, e-mail pro upozornění ani API klíč; tyto údaje se navíc každou hodinu obnovují (`/api/cron/demo-reset`). Data (služby, rezervace) obnoví `npm run seed`.</sub>
 
 ![Úvodní stránka](docs/screenshots/landing.jpg)
 
@@ -58,6 +58,8 @@ curl -H "Authorization: Bearer <API klíč>" https://rezervo.bukac-adam.workers.
 | Výpočet slotů | Čistá funkce `computeAvailableSlots()` v [`src/lib/slots.ts`](src/lib/slots.ts), pokrytá unit testy. |
 | E-maily | Odesílají se přes `after()` až po odpovědi, takže pomalé SMTP nezdrží zákazníka. Bez `RESEND_API_KEY` se jen vypisují do konzole. |
 | Veřejné API | Klíče se ověřují podle SHA-256 hashe; pro zobrazení v administraci jsou navíc uložené šifrovaně (AES-256-GCM, tajemství jen na serveru). Rotace je atomická (`rotate_api_key()`), rate limiting běží v Postgresu (`api_rate_limit_hit()`), takže platí napříč serverless instancemi. Handlery v [`src/lib/api/handlers.ts`](src/lib/api/handlers.ts) nemají přímou závislost na Supabase a jsou plně pokryté testy. |
+| Bezpečnostní hlavičky | CSP (jen vlastní origin, `frame-ancestors 'none'`), HSTS, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, COOP – v [`next.config.ts`](next.config.ts). |
+| Sdílené demo | [`src/lib/demo.ts`](src/lib/demo.ts) – blokuje změny, kterými by návštěvník zamkl účet ostatním nebo přesměroval e-maily; hodinový cron je vrací i při přímém volání Supabase. |
 | Připomínky | `/api/cron/reminders` – rezervace se nejdřív „zabere“ nastavením `reminder_sent_at`, takže dva souběžné běhy nepošlou připomínku dvakrát. |
 
 ```
@@ -309,7 +311,7 @@ Aplikace běží na Cloudflare Workers přes [`@opennextjs/cloudflare`](https://
 4. `npm run deploy` (lokální náhled ve workerd: `npm run preview`).
    Skript `scripts/cf-strip-env.mjs` po buildu odebere z bundlu vše kromě `NEXT_PUBLIC_*` – OpenNext jinak přibalí hodnoty ze všech `.env*` souborů.
 5. V Supabase (*Authentication → URL Configuration*) nastavte Site URL na produkční adresu a do Redirect URLs přidejte `https://<vaše-doména>/auth/callback`.
-6. Připomínky spouští Cron Trigger z `wrangler.jsonc` (denně v 15:00 UTC = 17:00 SELČ) – `custom-worker.ts` zavolá `/api/cron/reminders` s `CRON_SECRET`.
+6. Cron Triggery z `wrangler.jsonc`: připomínky denně v 15:00 UTC (17:00 SELČ) a obnova demo účtu každou hodinu – `custom-worker.ts` zavolá příslušnou route s `CRON_SECRET`.
 7. Pro e-maily na skutečné adresy ověřte v Resendu vlastní doménu a nastavte `EMAIL_FROM` (testovací `onboarding@resend.dev` doručuje jen na e-mail vašeho Resend účtu).
 
 Poznámka: `patches/@opennextjs+cloudflare+*.patch` (aplikuje `patch-package` při `npm install`) doplňuje inlinování manifestu `preview-props.json`, který Next.js 16.4 načítá a OpenNext 1.20 zatím nezná.

@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireBusiness } from "@/lib/auth";
+import { requireBusiness, requireUser } from "@/lib/auth";
+import { DEMO_LOCKED_MESSAGE, isDemoOwner } from "@/lib/demo";
 import { createClient } from "@/lib/supabase/server";
 import { generateApiKey } from "@/lib/api/keys";
 import { decryptApiKey, encryptApiKey, KeyEncryptionError } from "@/lib/api/key-crypto";
@@ -99,6 +100,9 @@ async function revokeApiKey(): Promise<ApiKeyState> {
 /** Single action for the key manager, so the UI always reflects the latest operation. */
 export async function manageApiKey(_prev: ApiKeyState, formData: FormData): Promise<ApiKeyState> {
   const intent = formData.get("intent");
+  if ((intent === "create" || intent === "revoke") && isDemoOwner((await requireUser()).email)) {
+    return { status: "error", error: DEMO_LOCKED_MESSAGE };
+  }
   if (intent === "create") return createApiKey();
   if (intent === "reveal") return revealApiKey();
   if (intent === "revoke") return revokeApiKey();

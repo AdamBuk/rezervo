@@ -16,6 +16,9 @@ export function BookingActions({ bookingId, defaultDate, defaultTime, stepMinute
   const [moveState, moveAction] = useActionState(rescheduleBooking, undefined);
   const [cancelState, cancelAction] = useActionState(cancelBooking, undefined);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  // Controlled, so React's automatic form reset after the action doesn't wipe the owner's input on error.
+  const [date, setDate] = useState(defaultDate);
+  const [time, setTime] = useState(defaultTime);
 
   return (
     <div className="space-y-6">
@@ -27,7 +30,7 @@ export function BookingActions({ bookingId, defaultDate, defaultTime, stepMinute
             <label htmlFor="move-date" className="label">
               Datum
             </label>
-            <input id="move-date" name="date" type="date" required defaultValue={defaultDate} className="input" />
+            <input id="move-date" name="date" type="date" required value={date} onChange={(e) => setDate(e.target.value)} className="input" />
           </div>
           <div>
             <label htmlFor="move-time" className="label">
@@ -39,7 +42,8 @@ export function BookingActions({ bookingId, defaultDate, defaultTime, stepMinute
               type="time"
               required
               step={stepMinutes * 60}
-              defaultValue={defaultTime}
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
               className="input"
             />
           </div>

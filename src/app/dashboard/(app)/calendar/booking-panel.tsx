@@ -88,6 +88,7 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
 
             {booking.status === "confirmed" && (
               <BookingActions
+                key={booking.id}
                 bookingId={booking.id}
                 defaultDate={local.date}
                 defaultTime={minutesToTime(local.minutes)}

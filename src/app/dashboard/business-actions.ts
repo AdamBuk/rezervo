@@ -6,6 +6,7 @@ import { getOwnBusiness, requireBusiness, requireUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isEmail, validateSlug } from "@/lib/format";
 import { SLOT_STEPS, type ActionState } from "@/lib/constants";
+import { DEMO_LOCKED_MESSAGE, isDemoOwner } from "@/lib/demo";
 
 type BusinessFields = {
   name: string;
@@ -61,12 +62,18 @@ export async function createBusiness(_prev: ActionState, formData: FormData): Pr
 }
 
 export async function updateBusiness(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const business = await requireBusiness();
+  const [user, business] = await Promise.all([requireUser(), requireBusiness()]);
   const fields = readBusinessFields(formData);
   if ("error" in fields) return fields;
 
   const notificationEmail = String(formData.get("notification_email") ?? "").trim();
   if (!isEmail(notificationEmail)) return { error: "Zadejte platný e-mail pro upozornění." };
+  if (
+    isDemoOwner(user.email) &&
+    (fields.slug !== business.slug || notificationEmail.toLowerCase() !== business.notification_email.toLowerCase())
+  ) {
+    return { error: DEMO_LOCKED_MESSAGE };
+  }
 
   const slotStep = Number(formData.get("slot_step_minutes"));
   if (!SLOT_STEPS.includes(slotStep as (typeof SLOT_STEPS)[number])) return { error: "Neplatný krok časových slotů." };

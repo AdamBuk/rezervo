@@ -14,9 +14,9 @@
   "images": {
     "binding": "IMAGES"
   },
-  // Replaces the Vercel cron: reminder e-mails daily at 15:00 UTC.
+  // Reminder e-mails daily at 15:00 UTC, demo account reset hourly (routes in custom-worker.ts).
   "triggers": {
-    "crons": ["0 15 * * *"]
+    "crons": ["0 15 * * *", "30 * * * *"]
   },
   "observability": {
     "enabled": true

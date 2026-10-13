@@ -61,6 +61,8 @@ Veřejné API pro externí aplikace (připravovaný AI asistent). Dokumentace pr
 ## Nasazení (Cloudflare Workers)
 - Produkce: https://rezervo.bukac-adam.workers.dev, repo github.com/AdamBuk/rezervo. Deploy `npm run deploy` (OpenNext build → `scripts/cf-strip-env.mjs` → wrangler), náhled `npm run preview`.
 - `NEXT_PUBLIC_*` se vkládají při buildu – produkční `NEXT_PUBLIC_SITE_URL` je v `.env.production.local` (gitignored). Serverová tajemství jen přes `wrangler secret put`.
-- Cron připomínek: `triggers.crons` ve `wrangler.jsonc` → `custom-worker.ts` (`scheduled`) volá `/api/cron/reminders`.
+- Crony: `triggers.crons` ve `wrangler.jsonc` → `custom-worker.ts` (`CRON_ROUTES`, musí sedět) volá `/api/cron/reminders` (denně) a `/api/cron/demo-reset` (hodinově).
+- Sdílený demo účet (`src/lib/demo.ts`): v akcích blokovat změny hesla, slugu, e-mailu pro upozornění a API klíče (`isDemoOwner`); demo-reset je vrací.
+- Bezpečnostní hlavičky (CSP aj.) v `next.config.ts` – nové externí zdroje (skripty, obrázky, fetch) přidat do CSP.
 - `patches/` (patch-package): OpenNext 1.20.11 neinlinuje `preview-props.json` z Next 16.4 – po upgradu OpenNext ověřit, zda je patch ještě potřeba.
 - Klientská IP pro rate limiting: `cf-connecting-ip` má přednost.
