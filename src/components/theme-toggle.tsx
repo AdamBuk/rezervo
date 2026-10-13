@@ -98,7 +98,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
     <div
       role="group"
       aria-label="Barevný motiv"
-      className={`inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-stone-200/70 bg-surface/50 p-0.5 ${className}`}
+      className={`inline-flex shrink-0 items-center gap-0.5 rounded-full border border-edge bg-surface/60 p-1 ${className}`}
     >
       {OPTIONS.map((option) => {
         const active = theme === option.value;
@@ -109,10 +109,10 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
             onClick={() => select(option.value)}
             aria-pressed={active}
             title={option.label}
-            className={`grid size-7 place-items-center rounded-md transition-[color,background-color,box-shadow,transform] duration-150 ease-(--ease-out) active:scale-90 motion-reduce:active:scale-100 ${
+            className={`grid size-7 place-items-center rounded-full transition-[color,background-color,box-shadow,transform] duration-150 ease-(--ease-out) active:scale-90 motion-reduce:active:scale-100 ${
               active
-                ? "bg-surface text-brand-700 shadow-(--shadow-glass)"
-                : "text-stone-500 hover:bg-surface/70 hover:text-stone-900"
+                ? "bg-ink text-on-ink"
+                : "text-stone-500 hover:bg-sand-100 hover:text-stone-900"
             }`}
           >
             <svg

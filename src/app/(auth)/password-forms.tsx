@@ -25,7 +25,7 @@ export function ForgotPasswordForm() {
           {state.message}
         </div>
         <p className="text-center text-sm">
-          <Link href="/login" className="font-semibold text-brand-700 hover:underline">
+          <Link href="/login" className="link">
             Zpět na přihlášení
           </Link>
         </p>
@@ -57,7 +57,7 @@ export function ForgotPasswordForm() {
       </SubmitButton>
       <p className="text-center text-sm text-stone-600">
         Vzpomněli jste si?{" "}
-        <Link href="/login" className="font-semibold text-brand-700 hover:underline">
+        <Link href="/login" className="link">
           Přihlaste se
         </Link>
       </p>

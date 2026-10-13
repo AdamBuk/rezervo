@@ -24,7 +24,7 @@ export default async function HoursPage() {
   return (
     <div className="stagger grid items-start gap-4 lg:grid-cols-2">
       <section className="card" aria-labelledby="hours-heading">
-        <h2 id="hours-heading" className="text-lg font-semibold">
+        <h2 id="hours-heading" className="headline text-3xl">
           Otevírací doba
         </h2>
         <p className="mb-4 mt-1 text-sm text-stone-600">
@@ -34,7 +34,7 @@ export default async function HoursPage() {
       </section>
 
       <section className="card" aria-labelledby="closures-heading">
-        <h2 id="closures-heading" className="text-lg font-semibold">
+        <h2 id="closures-heading" className="headline text-3xl">
           Dovolená a zavírací dny
         </h2>
         <p className="mb-4 mt-1 text-sm text-stone-600">

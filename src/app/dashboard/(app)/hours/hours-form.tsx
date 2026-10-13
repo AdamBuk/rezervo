@@ -14,7 +14,7 @@ export function HoursForm({ hours }: { hours: OpeningHours[] }) {
 
   return (
     <form action={formAction} className="space-y-4">
-      <ul className="divide-y divide-stone-200/60">
+      <ul className="divide-y divide-edge">
         {WEEKDAYS.map((day) => {
           const current = hours.find((h) => h.weekday === day.iso);
           const isOpen = openDays.has(day.iso);

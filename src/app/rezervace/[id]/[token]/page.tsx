@@ -38,13 +38,13 @@ export default async function ManageBookingPage({ params }: PageProps<"/rezervac
 
   return (
     <main id="main" tabIndex={-1} className="mx-auto w-full max-w-lg flex-1 px-4 py-10 outline-none sm:py-16">
-      <p className="text-sm font-medium text-brand-700">Vaše rezervace</p>
-      <h1 className="mt-1 text-2xl font-bold tracking-tight">{business.name}</h1>
+      <p className="eyebrow">Vaše rezervace</p>
+      <h1 className="headline mt-3 text-5xl">{business.name}</h1>
 
       <section className="card mt-6" aria-labelledby="booking-heading">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 id="booking-heading" className="text-lg font-semibold">
+            <h2 id="booking-heading" className="text-xl font-medium tracking-tight">
               {booking.services?.name ?? "Rezervace"}
             </h2>
             <p className="mt-1 text-stone-600 first-letter:uppercase">
@@ -63,7 +63,7 @@ export default async function ManageBookingPage({ params }: PageProps<"/rezervac
           <StatusBadge status={booking.status} isPast={isPast} />
         </div>
 
-        <dl className="mt-4 space-y-2 rounded-xl border border-edge/80 bg-surface/60 p-4 text-sm">
+        <dl className="mt-4 space-y-2 rounded-xl border border-edge bg-sand-50/60 p-4 text-sm">
           <div className="flex justify-between gap-4">
             <dt className="text-stone-500">Jméno</dt>
             <dd className="min-w-0 truncate font-medium">{booking.customer_name}</dd>
@@ -78,7 +78,7 @@ export default async function ManageBookingPage({ params }: PageProps<"/rezervac
             <div className="flex justify-between gap-4">
               <dt className="text-stone-500">Telefon</dt>
               <dd>
-                <a href={phoneHref} className="font-medium text-brand-700 hover:underline">
+                <a href={phoneHref} className="link">
                   {business.phone}
                 </a>
               </dd>
@@ -93,7 +93,7 @@ export default async function ManageBookingPage({ params }: PageProps<"/rezervac
             <div className="rounded-xl bg-sand-100 px-4 py-3 text-sm text-stone-700" role="status">
               <p className="font-semibold text-stone-900">Rezervace je zrušená.</p>
               <p className="mt-1">Termín je znovu volný. Potvrzení o zrušení najdete v e-mailu.</p>
-              <Link href={`/${business.slug}`} className="mt-2 inline-block font-semibold text-brand-700 hover:underline">
+              <Link href={`/${business.slug}`} className="mt-2 inline-block link">
                 Vybrat nový termín →
               </Link>
             </div>
@@ -147,6 +147,6 @@ function StatusBadge({ status, isPast }: { status: "confirmed" | "cancelled"; is
       ? ["Zrušeno", "bg-red-50 text-red-700"]
       : isPast
         ? ["Proběhlo", "bg-stone-100 text-stone-600"]
-        : ["Potvrzeno", "bg-brand-50 text-brand-800"];
-  return <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${className}`}>{label}</span>;
+        : ["Potvrzeno", "bg-sage-100 text-sage-700"];
+  return <span className={`shrink-0 rounded-full px-3 py-1 text-sm font-semibold ${className}`}>{label}</span>;
 }

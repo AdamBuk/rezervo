@@ -54,7 +54,7 @@ export function AddToCalendar({ uid, title, startsAt, durationMinutes, location,
 
 function CalendarIcon() {
   return (
-    <svg viewBox="0 0 20 20" className="size-4 text-brand-700" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
+    <svg viewBox="0 0 20 20" className="size-4 text-stone-500" fill="none" stroke="currentColor" strokeWidth={1.6} aria-hidden>
       <rect x="3" y="4.5" width="14" height="12" rx="2" />
       <path d="M3 8.5h14M7 3v3M13 3v3" strokeLinecap="round" />
     </svg>

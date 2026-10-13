@@ -17,7 +17,7 @@ function formatRange(startsOn: string, endsOn: string) {
 function ClosureItem({ closure }: { closure: Pick<Closure, "id" | "starts_on" | "ends_on" | "note"> }) {
   const [state, action] = useActionState(deleteClosure, undefined);
   return (
-    <li className="rounded-xl border border-edge/80 bg-surface/60 px-4 py-2.5">
+    <li className="rounded-xl border border-edge bg-sand-50/60 px-4 py-2.5">
       <form action={action} className="flex flex-wrap items-center justify-between gap-3">
         <input type="hidden" name="id" value={closure.id} />
         <div className="min-w-0">
@@ -68,8 +68,8 @@ export function ClosuresManager({
         </p>
       )}
 
-      <form ref={formRef} action={formAction} className="space-y-3 rounded-xl border border-edge/70 bg-surface/40 p-4">
-        <h3 className="font-semibold">Přidat zavírací dny</h3>
+      <form ref={formRef} action={formAction} className="space-y-3 rounded-xl border border-edge bg-sand-50/60 p-4">
+        <h3 className="font-medium">Přidat zavírací dny</h3>
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor="closure-from" className="label">

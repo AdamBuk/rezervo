@@ -34,7 +34,7 @@ export function CancelOwnBooking({ bookingId, token, bookAgainHref }: Props) {
       <div className="animate-[rise-in_220ms_var(--ease-out)] rounded-xl bg-brand-50 px-4 py-3 text-sm text-brand-900 motion-reduce:animate-[fade-in_150ms_ease-out]" role="status">
         <p className="font-semibold">Rezervace je zrušená.</p>
         <p className="mt-1">Potvrzení jsme vám poslali e-mailem a podnik o zrušení ví.</p>
-        <Link href={bookAgainHref} className="mt-2 inline-block font-semibold text-brand-700 hover:underline">
+        <Link href={bookAgainHref} className="mt-2 inline-block link">
           Vybrat jiný termín →
         </Link>
       </div>

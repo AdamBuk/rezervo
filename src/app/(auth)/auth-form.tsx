@@ -49,7 +49,7 @@ export function AuthForm({ mode, action, next }: Props) {
             Heslo
           </label>
           {isLogin && (
-            <Link href="/forgot-password" className="mb-1 rounded-sm text-xs font-medium text-brand-700 hover:underline">
+            <Link href="/forgot-password" className="mb-1.5 text-sm link">
               Zapomněli jste heslo?
             </Link>
           )}
@@ -76,14 +76,14 @@ export function AuthForm({ mode, action, next }: Props) {
         {isLogin ? (
           <>
             Ještě nemáte účet?{" "}
-            <Link href="/register" className="font-semibold text-brand-700 hover:underline">
+            <Link href="/register" className="link">
               Zaregistrujte se
             </Link>
           </>
         ) : (
           <>
             Už máte účet?{" "}
-            <Link href="/login" className="font-semibold text-brand-700 hover:underline">
+            <Link href="/login" className="link">
               Přihlaste se
             </Link>
           </>

@@ -4,42 +4,68 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-inter-tight), var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 
-  /* Brand palette: deep teal with warm sand neutrals */
-  --color-brand-50: #eefbf8;
-  --color-brand-100: #d5f4ec;
-  --color-brand-200: #aee8da;
-  --color-brand-300: #79d5c3;
-  --color-brand-400: #45bba7;
-  --color-brand-500: #26a08d;
-  --color-brand-600: #1b8173;
-  --color-brand-700: #19675e;
-  --color-brand-800: #18534d;
-  --color-brand-900: #174541;
-  --color-brand-950: #072826;
+  /* Neutral grays (the stone scale is remapped to a clean, cool-neutral ramp) */
+  --color-stone-50: #fafafa;
+  --color-stone-100: #f4f4f5;
+  --color-stone-200: #e7e7ea;
+  --color-stone-300: #d4d4d8;
+  --color-stone-400: #a1a1aa;
+  --color-stone-500: #71717a;
+  --color-stone-600: #52525b;
+  --color-stone-700: #3f3f46;
+  --color-stone-800: #27272a;
+  --color-stone-900: #111114;
+  --color-stone-950: #09090b;
 
-  --color-sand-50: #faf8f5;
-  --color-sand-100: #f3efe8;
-  --color-sand-200: #e6dfd3;
+  /* Brand: vivid violet, used for selection, highlights and the hero band */
+  --color-brand-50: #f4f2ff;
+  --color-brand-100: #ebe7ff;
+  --color-brand-200: #d7cfff;
+  --color-brand-300: #b8a9ff;
+  --color-brand-400: #937aff;
+  --color-brand-500: #7655ff;
+  --color-brand-600: #6340f5;
+  --color-brand-700: #5330dc;
+  --color-brand-800: #4428b3;
+  --color-brand-900: #382490;
+  --color-brand-950: #211461;
+
+  /* Pastel appointment / category tints (decorative only) */
+  --color-sage-100: #dcf5e9;
+  --color-sage-700: #0f6b47;
+  --color-blush-100: #fde4ef;
+  --color-blush-700: #a3245e;
+  --color-butter-100: #fff1c7;
+  --color-butter-700: #8a5a00;
+  --color-sky-100: #dcecff;
+  --color-sky-700: #1d5fb8;
+
+  /* Page and recessed backgrounds */
+  --color-sand-50: #f7f7f9;
+  --color-sand-100: #f1f1f4;
+  --color-sand-200: #e6e6eb;
 
   /* Semantic surfaces: remapped in dark mode, so components never hardcode white */
   --color-surface: #ffffff;
-  --color-edge: #ffffff;
+  --color-edge: #e7e7ec;
 
-  /* Solid accent fills behind white text: constant in both themes (the brand scale is remapped for text in dark) */
-  --color-accent: #1b8173;
-  --color-accent-strong: #19675e;
-  --color-accent-deep: #18534d;
-  --color-danger: #dc2626;
-  --color-danger-strong: #b91c1c;
+  /* Ink: primary buttons and the text on them; inverted in dark mode */
+  --color-ink: #0d0d12;
+  --color-on-ink: #ffffff;
 
-  /* Shadows tinted with the brand's deep teal (one light source, from above) */
-  --shadow-glass:
-    inset 0 1px 0 0 rgb(255 255 255 / 0.75), 0 1px 2px -1px rgb(7 40 38 / 0.08), 0 10px 30px -14px rgb(7 40 38 / 0.22);
-  --shadow-lifted:
-    inset 0 1px 0 0 rgb(255 255 255 / 0.8), 0 2px 4px -2px rgb(7 40 38 / 0.1), 0 18px 40px -18px rgb(7 40 38 / 0.32);
-  --shadow-brand: 0 1px 0 0 rgb(255 255 255 / 0.18) inset, 0 6px 16px -8px rgb(25 103 94 / 0.6);
+  /* Solid brand fills behind white text: constant in both themes (the brand scale is remapped for text in dark) */
+  --color-accent: #6340f5;
+  --color-accent-strong: #5330dc;
+  --color-accent-deep: #4428b3;
+  --color-danger: #d92d20;
+  --color-danger-strong: #b42318;
+
+  --shadow-panel: 0 1px 2px 0 rgb(16 16 24 / 0.04), 0 1px 3px 0 rgb(16 16 24 / 0.04);
+  --shadow-float: 0 1px 3px 0 rgb(16 16 24 / 0.06), 0 30px 70px -30px rgb(40 22 120 / 0.35);
+  --shadow-accent: 0 8px 20px -8px rgb(99 64 245 / 0.55);
 
   /* Motion: strong custom curves (built-in ease-out is too weak to feel intentional) */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -47,42 +73,53 @@
 }
 
 /*
- * Dark theme: a warm teal-charcoal, never pure black. Neutral and tint scales are inverted
- * so existing utilities (text-stone-900, bg-brand-50, …) read correctly without per-class dark: variants.
+ * Dark theme: near-black with a hint of blue, never pure black. Neutral and tint scales are inverted
+ * so existing utilities (text-stone-900, bg-brand-50, ...) read correctly without per-class dark: variants.
  */
 .dark {
   color-scheme: dark;
 
-  --color-surface: #18201f;
-  --color-edge: rgb(255 255 255 / 0.1);
+  --color-surface: #16161c;
+  --color-edge: #2a2a33;
+  --color-ink: #ffffff;
+  --color-on-ink: #0d0d12;
 
-  --color-sand-50: #0c1211;
-  --color-sand-100: #121918;
-  --color-sand-200: #1b2422;
+  --color-sand-50: #0e0e13;
+  --color-sand-100: #1c1c23;
+  --color-sand-200: #26262f;
 
-  --color-stone-50: #1a2120;
-  --color-stone-100: #212927;
-  --color-stone-200: #2b3432;
-  --color-stone-300: #3a4442;
-  --color-stone-400: #66706e;
-  --color-stone-500: #8f9997;
-  --color-stone-600: #aab3b1;
-  --color-stone-700: #c5cccb;
-  --color-stone-800: #dce1e0;
-  --color-stone-900: #eef1f0;
-  --color-stone-950: #f7f9f8;
+  --color-sage-100: #11291f;
+  --color-sage-700: #7fdcb0;
+  --color-blush-100: #31162a;
+  --color-blush-700: #f7a3c8;
+  --color-butter-100: #2d2513;
+  --color-butter-700: #f3cf73;
+  --color-sky-100: #12233d;
+  --color-sky-700: #9cc5ff;
 
-  --color-brand-50: #0f2e2a;
-  --color-brand-100: #133832;
-  --color-brand-200: #1a4a43;
-  --color-brand-300: #23675d;
-  --color-brand-400: #34917f;
-  --color-brand-500: #45bba7;
-  --color-brand-600: #4fc4af;
-  --color-brand-700: #72d4c1;
-  --color-brand-800: #94e0d1;
-  --color-brand-900: #b6ebe0;
-  --color-brand-950: #d8f5ee;
+  --color-stone-50: #1b1b22;
+  --color-stone-100: #22222a;
+  --color-stone-200: #2e2e38;
+  --color-stone-300: #3f3f4a;
+  --color-stone-400: #6c6c78;
+  --color-stone-500: #9a9aa6;
+  --color-stone-600: #b9b9c3;
+  --color-stone-700: #d2d2da;
+  --color-stone-800: #e6e6ec;
+  --color-stone-900: #f4f4f7;
+  --color-stone-950: #fbfbfd;
+
+  --color-brand-50: #1d1838;
+  --color-brand-100: #261f4d;
+  --color-brand-200: #352b6e;
+  --color-brand-300: #4b3c9c;
+  --color-brand-400: #6b55d6;
+  --color-brand-500: #8d78ff;
+  --color-brand-600: #a593ff;
+  --color-brand-700: #bdb0ff;
+  --color-brand-800: #d3caff;
+  --color-brand-900: #e5dfff;
+  --color-brand-950: #f3f0ff;
 
   --color-red-50: #2b1517;
   --color-red-100: #3b1b1d;
@@ -94,11 +131,9 @@
   --color-amber-800: #fcd34d;
   --color-amber-900: #fde68a;
 
-  --shadow-glass:
-    inset 0 1px 0 0 rgb(255 255 255 / 0.05), 0 1px 2px -1px rgb(0 0 0 / 0.5), 0 10px 30px -14px rgb(0 0 0 / 0.7);
-  --shadow-lifted:
-    inset 0 1px 0 0 rgb(255 255 255 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.5), 0 18px 40px -18px rgb(0 0 0 / 0.8);
-  --shadow-brand: 0 1px 0 0 rgb(255 255 255 / 0.14) inset, 0 6px 18px -8px rgb(38 160 141 / 0.55);
+  --shadow-panel: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --shadow-float: 0 1px 3px 0 rgb(0 0 0 / 0.5), 0 30px 70px -30px rgb(0 0 0 / 0.9);
+  --shadow-accent: 0 8px 20px -8px rgb(99 64 245 / 0.6);
 }
 
 html {
@@ -118,45 +153,13 @@ html {
 }
 
 body {
-  @apply bg-sand-50 text-stone-900 antialiased;
-  isolation: isolate;
+  @apply bg-surface text-stone-900 antialiased;
+  font-feature-settings: "cv11", "ss01";
 }
 
-/* Ambient backdrop: soft teal/sand light pools give the glass surfaces something to refract. */
-body::before {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -2;
-  pointer-events: none;
-  background:
-    radial-gradient(42rem 30rem at 8% -6%, rgb(121 213 195 / 0.38), transparent 70%),
-    radial-gradient(36rem 28rem at 96% 4%, rgb(230 223 211 / 0.9), transparent 70%),
-    radial-gradient(40rem 32rem at 70% 108%, rgb(174 232 218 / 0.35), transparent 70%),
-    radial-gradient(30rem 24rem at -4% 92%, rgb(243 239 232 / 0.95), transparent 70%);
-}
-.dark body::before {
-  background:
-    radial-gradient(42rem 30rem at 8% -6%, rgb(38 160 141 / 0.16), transparent 70%),
-    radial-gradient(36rem 28rem at 96% 4%, rgb(69 187 167 / 0.07), transparent 70%),
-    radial-gradient(40rem 32rem at 70% 108%, rgb(27 129 115 / 0.12), transparent 70%);
-}
-
-/* Fine grain breaks the digital flatness of the gradients. */
-body::after {
-  content: "";
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  opacity: 0.05;
-  mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-.dark body::after {
-  opacity: 0.035;
-  mix-blend-mode: screen;
+::selection {
+  background-color: var(--color-brand-200);
+  color: var(--color-brand-950);
 }
 
 /* Applied for one frame while switching themes so every color snaps at once instead of easing piecemeal. */
@@ -173,6 +176,19 @@ h3 {
 
 p {
   text-wrap: pretty;
+}
+
+/* Display headings: Inter Tight, heavy and tightly tracked */
+@utility headline {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.04;
+}
+
+/* Kicker above a heading */
+@utility eyebrow {
+  @apply text-sm font-semibold text-brand-600;
 }
 
 /* No double-tap zoom delay on controls */
@@ -196,12 +212,12 @@ button,
 
 /* Visible keyboard focus everywhere; components may refine it with their own focus-visible styles */
 :where(a, button, input, select, textarea, summary, [tabindex]:not([tabindex="-1"])):focus-visible {
-  outline: 2px solid var(--color-brand-600);
+  outline: 2px solid var(--color-brand-500);
   outline-offset: 2px;
 }
 
 @utility skip-link {
-  @apply pointer-events-none fixed top-3 left-3 z-50 -translate-y-20 rounded-lg bg-accent-strong px-4 py-2 text-sm font-semibold text-white opacity-0 shadow-lg transition-[transform,opacity] focus-visible:pointer-events-auto focus-visible:translate-y-0 focus-visible:opacity-100 motion-reduce:transition-none;
+  @apply pointer-events-none fixed top-3 left-3 z-50 -translate-y-20 rounded-full bg-ink px-4 py-2 text-sm font-semibold text-on-ink opacity-0 shadow-lg transition-[transform,opacity] focus-visible:pointer-events-auto focus-visible:translate-y-0 focus-visible:opacity-100 motion-reduce:transition-none;
 }
 
 /* Motion: short, ease-out entrances */
@@ -218,29 +234,29 @@ button,
 }
 @keyframes rise-in {
   from {
-    transform: translateY(8px);
+    transform: translateY(12px);
     opacity: 0;
   }
 }
 
-/* Staggered entrance: children cascade in 50ms apart (fade only with reduced motion). */
+/* Staggered entrance: children cascade in 60ms apart (fade only with reduced motion). */
 .stagger > * {
-  animation: rise-in 480ms var(--ease-out) both;
+  animation: rise-in 560ms var(--ease-out) both;
 }
 .stagger > :nth-child(2) {
-  animation-delay: 50ms;
+  animation-delay: 60ms;
 }
 .stagger > :nth-child(3) {
-  animation-delay: 100ms;
+  animation-delay: 120ms;
 }
 .stagger > :nth-child(4) {
-  animation-delay: 150ms;
+  animation-delay: 180ms;
 }
 .stagger > :nth-child(5) {
-  animation-delay: 200ms;
+  animation-delay: 240ms;
 }
 .stagger > :nth-child(n + 6) {
-  animation-delay: 250ms;
+  animation-delay: 300ms;
 }
 @media (prefers-reduced-motion: reduce) {
   .stagger > * {
@@ -248,52 +264,53 @@ button,
   }
 }
 
-/* Glass surfaces: translucent fill, blur + saturation, 1px light edge and inner highlight */
-@utility glass {
-  @apply border border-edge/70 bg-surface/60 shadow-(--shadow-glass) backdrop-blur-xl backdrop-saturate-150;
-
-  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    background-color: color-mix(in oklab, var(--color-surface) 94%, transparent);
-  }
-  @media (prefers-reduced-transparency: reduce) {
-    background-color: color-mix(in oklab, var(--color-surface) 96%, transparent);
-  }
+/* Panels: white surface with a hairline edge */
+@utility panel {
+  @apply border border-edge bg-surface shadow-(--shadow-panel);
 }
-@utility glass-strong {
-  @apply border-edge/80 bg-surface/75 shadow-(--shadow-glass) backdrop-blur-2xl backdrop-saturate-150;
+/* Sticky chrome (headers): translucent so content scrolls under it */
+@utility chrome {
+  @apply border-edge bg-surface/85 backdrop-blur-lg;
 
   @media (prefers-reduced-transparency: reduce) {
-    background-color: color-mix(in oklab, var(--color-surface) 97%, transparent);
+    background-color: var(--color-surface);
   }
 }
 
 /* Shared form controls (defined as utilities so they compose with @apply) */
 @utility input {
-  @apply block w-full rounded-lg border border-stone-300/80 bg-surface/85 px-3 py-2 text-sm text-stone-900 shadow-xs transition-[border-color,box-shadow] duration-150 placeholder:text-stone-400 pointer-coarse:text-base hover:border-stone-400/80 focus:border-brand-500 focus:bg-surface focus:ring-4 focus:ring-brand-500/15 focus:outline-none disabled:bg-stone-100;
+  @apply block h-12 w-full rounded-xl border border-stone-300 bg-surface px-4 text-base text-stone-900 transition-[border-color,box-shadow] duration-150 placeholder:text-stone-400 hover:border-stone-400 focus:border-brand-500 focus:ring-4 focus:ring-brand-500/15 focus:outline-none disabled:bg-stone-100;
 }
 @utility label {
-  @apply mb-1 block text-sm font-medium text-stone-700;
+  @apply mb-2 block text-sm font-semibold text-stone-900;
 }
 @utility btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-(--ease-out) select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 motion-reduce:active:scale-100;
+  @apply inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-[0.9375rem] font-semibold whitespace-nowrap transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-(--ease-out) select-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-500 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 motion-reduce:active:scale-100;
 }
 @utility btn-primary {
-  @apply btn bg-linear-to-b from-accent to-accent-strong text-white shadow-(--shadow-brand) hover:from-accent-strong hover:to-accent-deep;
+  @apply btn bg-ink text-on-ink hover:bg-ink/85;
+}
+@utility btn-brand {
+  @apply btn bg-accent text-white shadow-(--shadow-accent) hover:bg-accent-strong;
 }
 @utility btn-secondary {
-  @apply btn border border-stone-300/70 bg-surface/70 text-stone-800 shadow-xs backdrop-blur hover:border-stone-400/70 hover:bg-surface;
+  @apply btn border border-stone-300 bg-surface text-stone-900 hover:border-stone-900;
 }
 @utility btn-danger {
-  @apply btn border border-red-200 bg-surface/70 text-red-700 backdrop-blur hover:border-red-300 hover:bg-red-50;
+  @apply btn border border-red-200 bg-surface text-red-700 hover:border-red-300 hover:bg-red-50;
 }
 /* Solid destructive action (confirm step) */
 @utility btn-destructive {
-  @apply btn bg-danger text-white shadow-xs hover:bg-danger-strong;
+  @apply btn bg-danger text-white hover:bg-danger-strong;
+}
+/* Inline text link */
+@utility link {
+  @apply font-semibold text-brand-600 underline-offset-4 transition-colors duration-150 hover:text-brand-700 hover:underline;
 }
 @utility card {
-  @apply glass rounded-2xl p-5;
+  @apply panel rounded-2xl p-6;
 }
-/* Rows inside a glass panel (lists, tables) */
+/* Rows inside a panel (lists, tables) */
 @utility panel-row {
-  @apply px-4 py-3 transition-colors duration-150 hover:bg-surface/60;
+  @apply px-5 py-4 transition-colors duration-150 hover:bg-sand-50;
 }

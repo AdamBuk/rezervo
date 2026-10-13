@@ -1,12 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Inter, Inter_Tight } from "next/font/google";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import "./globals.css";
 
-const jakarta = Plus_Jakarta_Sans({
-  variable: "--font-jakarta",
-  subsets: ["latin", "latin-ext"],
-});
+const inter = Inter({ variable: "--font-inter", subsets: ["latin", "latin-ext"] });
+const interTight = Inter_Tight({ variable: "--font-inter-tight", subsets: ["latin", "latin-ext"] });
 
 export const metadata: Metadata = {
   title: {
@@ -19,8 +17,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#faf8f5" },
-    { media: "(prefers-color-scheme: dark)", color: "#0c1211" },
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e0e13" },
   ],
   colorScheme: "light dark",
 };
@@ -28,7 +26,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     // The init script sets `dark` / color-scheme on <html> before hydration.
-    <html lang="cs" className={`${jakarta.variable} h-full`} suppressHydrationWarning>
+    <html lang="cs" className={`${inter.variable} ${interTight.variable} h-full`} suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>

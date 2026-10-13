@@ -71,17 +71,17 @@ function layout(opts: {
     .join("");
 
   const html = `<!doctype html>
-<html lang="cs"><body style="margin:0;background:#faf8f5;font-family:Helvetica,Arial,sans-serif;color:#1c1917">
+<html lang="cs"><body style="margin:0;background:#fbf6ef;font-family:Helvetica,Arial,sans-serif;color:#2b201b">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:32px 16px"><tr><td align="center">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border:1px solid #e7e5e4;border-radius:16px">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fffdf9;border:1px solid #efe3d4;border-radius:20px">
 <tr><td style="padding:28px 28px 8px">
-<h1 style="margin:0 0 12px;font-size:20px;color:#19675e">${escapeHtml(opts.heading)}</h1>
+<h1 style="margin:0 0 12px;font-size:24px;font-weight:700;line-height:1.2;color:#2b201b">${escapeHtml(opts.heading)}</h1>
 <p style="margin:0 0 16px;font-size:15px;line-height:1.5">${escapeHtml(opts.intro)}</p>
 ${rows ? `<table role="presentation" cellpadding="0" cellspacing="0" style="font-size:14px;margin:0 0 16px">${rows}</table>` : ""}
-${action ? `<p style="margin:4px 0 20px"><a href="${escapeHtml(action.url)}" style="display:inline-block;background:#19675e;color:#ffffff;text-decoration:none;font-weight:600;font-size:14px;padding:10px 18px;border-radius:8px">${escapeHtml(action.label)}</a></p>` : ""}
+${action ? `<p style="margin:4px 0 20px"><a href="${escapeHtml(action.url)}" style="display:inline-block;background:#c4522b;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 22px;border-radius:999px">${escapeHtml(action.label)}</a></p>` : ""}
 ${opts.outro ? `<p style="margin:0 0 16px;font-size:14px;line-height:1.5;color:#57534e">${escapeHtml(opts.outro)}</p>` : ""}
 </td></tr>
-<tr><td style="padding:16px 28px 24px;border-top:1px solid #f5f5f4;font-size:12px;color:#a8a29e">${escapeHtml(opts.footer)}</td></tr>
+<tr><td style="padding:16px 28px 24px;border-top:1px solid #efe3d4;font-size:12px;color:#a8a29e">${escapeHtml(opts.footer)}</td></tr>
 </table></td></tr></table></body></html>`;
 
   const text = [

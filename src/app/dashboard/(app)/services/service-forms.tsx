@@ -95,14 +95,14 @@ export function ServiceItem({ service }: { service: Service }) {
   const [deleteState, deleteAction] = useActionState(deleteService, undefined);
 
   return (
-    <details className="group transition-colors open:bg-surface/70">
+    <details className="group transition-colors open:bg-sand-50/60">
       {/* Table-like row: name | duration | price | action, columns aligned across rows */}
       <summary className="panel-row grid cursor-pointer list-none grid-cols-[1fr_auto] items-center gap-x-4 gap-y-0.5 sm:grid-cols-[1fr_6rem_6rem_4.5rem] [&::-webkit-details-marker]:hidden">
         <div className="min-w-0">
           <p className="flex items-center gap-2 font-medium">
             <span className="truncate">{service.name}</span>
             {!service.is_active && (
-              <span className="shrink-0 rounded-md bg-stone-200/70 px-1.5 py-0.5 text-[0.7rem] font-semibold text-stone-500">
+              <span className="shrink-0 rounded-full bg-stone-100 px-2.5 py-0.5 text-xs font-semibold text-stone-600 uppercase">
                 skrytá
               </span>
             )}
@@ -116,11 +116,11 @@ export function ServiceItem({ service }: { service: Service }) {
           {formatDuration(service.duration_minutes)}
         </span>
         <span className="hidden text-right text-sm font-semibold tabular-nums sm:block">{formatPrice(service.price_czk)}</span>
-        <span className="text-right text-sm font-medium text-brand-700 group-open:hidden">Upravit</span>
+        <span className="text-right text-sm text-stone-500 underline decoration-stone-300 underline-offset-4 group-open:hidden">Upravit</span>
         <span className="hidden text-right text-sm font-medium text-stone-500 group-open:inline">Zavřít</span>
       </summary>
 
-      <div className="animate-[rise-in_220ms_var(--ease-out)] space-y-4 border-t border-stone-200/60 p-4 motion-reduce:animate-none">
+      <div className="animate-[rise-in_220ms_var(--ease-out)] space-y-4 border-t border-edge p-4 motion-reduce:animate-none">
         <form action={updateAction} className="@container space-y-4">
           <input type="hidden" name="id" value={service.id} />
           <ServiceFields service={service} />
@@ -137,7 +137,7 @@ export function ServiceItem({ service }: { service: Service }) {
           <SubmitButton>Uložit</SubmitButton>
         </form>
 
-        <form action={deleteAction} className="border-t border-stone-200/60 pt-4">
+        <form action={deleteAction} className="border-t border-edge pt-4">
           <input type="hidden" name="id" value={service.id} />
           <FormMessage state={deleteState} />
           <div className="mt-2">

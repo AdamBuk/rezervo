@@ -25,9 +25,9 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
 
   return (
     <div className="fixed inset-0 z-40 flex justify-end">
-      <Link href={closeHref} scroll={false} aria-label="Zavřít detail" className="absolute inset-0 animate-[fade-in_200ms_ease-out] bg-stone-900/25 backdrop-blur-[2px] dark:bg-black/55" />
+      <Link href={closeHref} scroll={false} aria-label="Zavřít detail" className="absolute inset-0 animate-[fade-in_200ms_ease-out] bg-stone-950/20 dark:bg-black/55" />
       <DrawerShell closeHref={closeHref} labelledBy="booking-title">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-edge/70 bg-surface/60 px-5 py-3.5 backdrop-blur-xl">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-edge bg-surface/90 px-5 py-3.5 backdrop-blur-md">
           <h2 id="booking-title" className="font-semibold">
             Detail rezervace
           </h2>
@@ -42,9 +42,9 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
           <div className="space-y-5 p-5">
             <div>
               {booking.status === "cancelled" && (
-                <p className="mb-3 inline-block rounded-full bg-red-50 px-2.5 py-0.5 text-xs font-semibold text-red-700">Zrušeno</p>
+                <p className="mb-3 inline-block rounded-full bg-red-50 px-3 py-1 text-sm font-semibold text-red-700 uppercase">Zrušeno</p>
               )}
-              <p className="text-xl font-bold">{booking.services?.name}</p>
+              <p className="headline text-3xl">{booking.services?.name}</p>
               <p className="mt-1 text-stone-600 first-letter:uppercase">
                 {formatInTimeZone(booking.starts_at, tz, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
               </p>
@@ -59,7 +59,7 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
               </p>
             </div>
 
-            <dl className="space-y-3 rounded-xl border border-edge/80 bg-surface/60 p-4 text-sm">
+            <dl className="space-y-3 rounded-xl border border-edge bg-sand-50/60 p-4 text-sm">
               <div>
                 <dt className="text-stone-500">Zákazník</dt>
                 <dd className="font-medium">{booking.customer_name}</dd>
@@ -67,7 +67,7 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
               <div>
                 <dt className="text-stone-500">E-mail</dt>
                 <dd>
-                  <a href={`mailto:${booking.customer_email}`} className="font-medium text-brand-700 hover:underline">
+                  <a href={`mailto:${booking.customer_email}`} className="link">
                     {booking.customer_email}
                   </a>
                 </dd>
@@ -75,7 +75,7 @@ export async function BookingPanel({ bookingId, business, closeHref }: Props) {
               <div>
                 <dt className="text-stone-500">Telefon</dt>
                 <dd>
-                  <a href={`tel:${booking.customer_phone.replace(/\s/g, "")}`} className="font-medium text-brand-700 hover:underline">
+                  <a href={`tel:${booking.customer_phone.replace(/\s/g, "")}`} className="link">
                     {booking.customer_phone}
                   </a>
                 </dd>

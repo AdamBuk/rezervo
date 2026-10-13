@@ -24,8 +24,8 @@ export default async function ApiPage() {
       <section className="card lg:col-span-2" aria-labelledby="api-intro-heading">
         <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between md:gap-10">
           <div className="max-w-xl">
-            <p className="text-xs font-semibold tracking-wide text-brand-700 uppercase">Pro pokročilé</p>
-            <h2 id="api-intro-heading" className="mt-1 text-lg font-semibold">
+            <p className="eyebrow">Pro pokročilé</p>
+            <h2 id="api-intro-heading" className="headline mt-2 text-3xl">
               K čemu je API klíč
             </h2>
             <p className="mt-1 text-sm leading-relaxed text-stone-600">
@@ -39,7 +39,7 @@ export default async function ApiPage() {
           </div>
           <ul className="grid shrink-0 gap-2 text-sm md:w-72">
             {USE_CASES.map((item) => (
-              <li key={item.title} className="rounded-xl border border-edge/80 bg-surface/50 px-3.5 py-2.5">
+              <li key={item.title} className="rounded-xl border border-edge bg-sand-50/60 px-3.5 py-2.5">
                 <p className="font-medium text-stone-900">{item.title}</p>
                 <p className="text-stone-500">{item.text}</p>
               </li>
@@ -49,7 +49,7 @@ export default async function ApiPage() {
       </section>
 
       <section className="card" aria-labelledby="api-key-heading">
-        <h2 id="api-key-heading" className="text-lg font-semibold">
+        <h2 id="api-key-heading" className="headline text-3xl">
           API klíč
         </h2>
         <p className="mt-1 mb-4 text-sm text-stone-500">
@@ -71,7 +71,7 @@ export default async function ApiPage() {
       </section>
 
       <section className="card" aria-labelledby="api-usage-heading">
-        <h2 id="api-usage-heading" className="text-lg font-semibold">
+        <h2 id="api-usage-heading" className="headline text-3xl">
           Pro vývojáře
         </h2>
         <p className="mt-1 mb-4 text-sm text-stone-500">
@@ -83,7 +83,7 @@ export default async function ApiPage() {
           <dt className="font-medium text-stone-700">Základní URL</dt>
           <dd className="font-mono break-all text-stone-600">{baseUrl}</dd>
         </dl>
-        <ul className="mb-4 divide-y divide-stone-200/70 overflow-hidden rounded-xl border border-edge/80 bg-surface/50 font-mono text-xs">
+        <ul className="mb-4 divide-y divide-edge overflow-hidden rounded-xl border border-edge bg-sand-50/60 font-mono text-xs">
           {ENDPOINTS.map(([method, path]) => (
             <li key={`${method} ${path}`} className="flex items-center gap-3 px-3 py-2">
               <span

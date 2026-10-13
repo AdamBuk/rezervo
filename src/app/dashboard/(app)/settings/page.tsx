@@ -11,7 +11,7 @@ export default async function SettingsPage() {
 
   return (
     <div className="card max-w-2xl">
-      <h2 className="mb-5 text-lg font-semibold">Údaje o podniku</h2>
+      <h2 className="headline mb-6 text-3xl">Údaje o podniku</h2>
       <BusinessForm action={updateBusiness} business={business} siteHost={new URL(await getSiteUrl()).host} submitLabel="Uložit změny" />
     </div>
   );

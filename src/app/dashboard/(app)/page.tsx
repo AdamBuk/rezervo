@@ -87,35 +87,37 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
     : null;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-6">
       {params.password === "changed" && (
-        <p className="rounded-xl bg-brand-50 px-4 py-3 text-sm font-medium text-brand-800" role="status">
+        <p className="rounded-2xl bg-sage-100 px-5 py-3.5 font-semibold text-sage-700" role="status">
           Heslo bylo změněno.
         </p>
       )}
-      <dl className="stagger grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div className="glass rounded-2xl px-4 py-3">
-          <dt className="text-xs font-medium text-stone-500">Rezervace · {periodLabel}</dt>
-          <dd className="mt-0.5 text-2xl font-bold tracking-tight tabular-nums">{calendarBookings.length}</dd>
+      <dl className="stagger grid grid-cols-2 gap-4 lg:grid-cols-[1fr_1fr_1.3fr]">
+        <div className="rounded-2xl bg-blush-100 p-5 sm:p-6">
+          <dt className="text-sm font-semibold text-stone-700">Rezervace · {periodLabel}</dt>
+          <dd className="headline mt-2 text-4xl tabular-nums sm:text-5xl">{calendarBookings.length}</dd>
         </div>
-        <div className="glass rounded-2xl px-4 py-3">
-          <dt className="text-xs font-medium text-stone-500">Očekávaná tržba · {periodLabel}</dt>
-          <dd className="mt-0.5 text-2xl font-bold tracking-tight tabular-nums">{formatPrice(revenue)}</dd>
+        <div className="rounded-2xl bg-sage-100 p-5 sm:p-6">
+          <dt className="text-sm font-semibold text-stone-700">Očekávaná tržba · {periodLabel}</dt>
+          <dd className="headline mt-2 text-4xl tabular-nums sm:text-5xl">{formatPrice(revenue)}</dd>
         </div>
-        <div className="glass col-span-2 rounded-2xl px-4 py-3 sm:col-span-1">
-          <dt className="text-xs font-medium text-stone-500">Nejbližší zákazník</dt>
-          <dd className="mt-1 min-w-0">
+        <div className="col-span-2 rounded-2xl bg-butter-100 p-5 sm:p-6 lg:col-span-1">
+          <dt className="text-sm font-semibold text-stone-700">Nejbližší zákazník</dt>
+          <dd className="mt-2 min-w-0">
             {upcoming && upcomingHref ? (
-              <Link href={upcomingHref} className="group block min-w-0 rounded-md focus-visible:outline-2 focus-visible:outline-brand-600">
-                <span className="block truncate font-semibold group-hover:text-brand-700">{upcoming.customer_name}</span>
-                <span className="block truncate text-sm text-stone-500 first-letter:uppercase">
+              <Link href={upcomingHref} className="group block min-w-0 rounded-lg focus-visible:outline-2 focus-visible:outline-brand-600">
+                <span className="block truncate font-display text-2xl font-bold tracking-tight underline decoration-transparent decoration-2 underline-offset-4 transition-[text-decoration-color] group-hover:decoration-brand-400">
+                  {upcoming.customer_name}
+                </span>
+                <span className="mt-1 block truncate text-stone-700 first-letter:uppercase">
                   {formatInTimeZone(upcoming.starts_at, business.timezone, { weekday: "short", day: "numeric", month: "numeric" })}{" "}
                   v {formatTime(upcoming.starts_at, business.timezone)}
                   {upcoming.services?.name ? ` · ${upcoming.services.name}` : ""}
                 </span>
               </Link>
             ) : (
-              <span className="text-sm text-stone-500">Žádné nadcházející rezervace</span>
+              <span className="text-stone-600">Žádné nadcházející rezervace</span>
             )}
           </dd>
         </div>
@@ -123,24 +125,24 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Link href={href({ date: addDays(requested, -step), booking: null })} className="btn-secondary px-2.5" aria-label="Předchozí">
+          <Link href={href({ date: addDays(requested, -step), booking: null })} className="btn-secondary size-11 p-0" aria-label="Předchozí">
             ←
           </Link>
           <Link href={href({ date: today, booking: null })} className="btn-secondary">
             Dnes
           </Link>
-          <Link href={href({ date: addDays(requested, step), booking: null })} className="btn-secondary px-2.5" aria-label="Další">
+          <Link href={href({ date: addDays(requested, step), booking: null })} className="btn-secondary size-11 p-0" aria-label="Další">
             →
           </Link>
-          <h2 className="ml-2 text-lg font-semibold">{title}</h2>
+          <h2 className="headline ml-2 text-2xl sm:text-3xl">{title}</h2>
         </div>
-        <div className="glass inline-flex rounded-xl p-1 text-sm" role="group" aria-label="Zobrazení">
+        <div className="inline-flex rounded-full border border-edge bg-surface p-1 shadow-(--shadow-panel)" role="group" aria-label="Zobrazení">
           {(["day", "week"] as const).map((v) => (
             <Link
               key={v}
               href={href({ view: v, booking: null })}
               aria-current={view === v ? "page" : undefined}
-              className={`rounded-lg px-3 py-1 font-medium transition-[color,background-color,box-shadow] duration-200 ${view === v ? "bg-surface text-brand-800 shadow-(--shadow-glass)" : "text-stone-600 hover:bg-surface/60"}`}
+              className={`rounded-full px-4 py-1.5 font-semibold transition-[color,background-color,box-shadow] duration-200 ${view === v ? "bg-ink text-on-ink" : "text-stone-600 hover:bg-sand-100 hover:text-stone-900"}`}
             >
               {v === "day" ? "Den" : "Týden"}
             </Link>

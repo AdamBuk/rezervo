@@ -111,12 +111,12 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
   if (state.status === "success") {
     return (
       <div className="card animate-[rise-in_260ms_var(--ease-out)] text-center motion-reduce:animate-[fade-in_150ms_ease-out]" role="status">
-        <div className="mx-auto grid size-14 place-items-center rounded-full bg-brand-100 text-brand-700">
-          <svg viewBox="0 0 24 24" className="size-7" fill="none" stroke="currentColor" strokeWidth={2.5} aria-hidden>
+        <div className="mx-auto grid size-16 place-items-center rounded-full bg-sage-100 text-sage-700">
+          <svg viewBox="0 0 24 24" className="size-8" fill="none" stroke="currentColor" strokeWidth={2.4} aria-hidden>
             <path d="M5 12.5l4.5 4.5L19 7.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </div>
-        <h2 className="mt-4 text-xl font-bold">Rezervace je potvrzená</h2>
+        <h2 className="headline mt-5 text-3xl sm:text-4xl">Rezervace je potvrzená</h2>
         <p className="mt-2 text-stone-600">
           <strong className="text-stone-900">{state.serviceName}</strong>
           <br />
@@ -143,13 +143,13 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
             location={business.address}
             description={business.phone ? `Změna termínu: ${business.phone}` : undefined}
           />
-          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm font-semibold">
+          <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm font-medium">
             {state.managePath && (
-              <a href={state.managePath} className="text-stone-600 hover:text-stone-900 hover:underline">
+              <a href={state.managePath} className="text-stone-600 underline decoration-stone-300 underline-offset-4 hover:text-stone-900">
                 Zobrazit nebo zrušit rezervaci
               </a>
             )}
-            <button type="button" onClick={onRestart} className="text-brand-700 hover:underline">
+            <button type="button" onClick={onRestart} className="link">
               Vytvořit další rezervaci
             </button>
           </div>
@@ -165,7 +165,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
   const days = Array.from({ length: DAYS_PER_PAGE }, (_, i) => addDays(pageStart, i));
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {/* Step 1: service */}
       <section className="card" aria-labelledby="step-1">
         <StepTitle id="step-1" n={1} done={Boolean(service)}>
@@ -183,14 +183,14 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
                   setServiceId(s.id);
                   requestAnimationFrame(() => revealStep(step2Ref.current));
                 }}
-                className={`flex items-center justify-between gap-3 rounded-xl border px-3.5 py-3 text-left transition-[background-color,border-color,box-shadow,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.98] motion-reduce:active:scale-100 ${
+                className={`flex items-center justify-between gap-3 rounded-2xl border-2 px-4 py-3.5 text-left transition-[background-color,border-color,box-shadow,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 active:scale-[0.98] motion-reduce:active:scale-100 ${
                   selected
-                    ? "border-brand-600 bg-brand-50/90 shadow-(--shadow-glass) ring-1 ring-brand-600"
-                    : "border-edge/80 bg-surface/55 hover:border-brand-200 hover:bg-surface/90 hover:shadow-xs"
+                    ? "border-brand-500 bg-brand-50"
+                    : "border-edge bg-surface hover:border-brand-200 hover:bg-brand-50/40"
                 }`}
               >
                 <span className="min-w-0">
-                  <span className="block truncate font-medium">{s.name}</span>
+                  <span className="block truncate font-semibold">{s.name}</span>
                   {s.description && <span className="block truncate text-sm text-stone-500">{s.description}</span>}
                 </span>
                 <span className="shrink-0 text-right text-sm">
@@ -217,7 +217,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
           <div className="flex gap-1">
             <button
               type="button"
-              className="btn-secondary px-2.5 py-1.5"
+              className="btn-secondary size-10 p-0"
               aria-label="Předchozí týden"
               disabled={pageStart <= today}
               onClick={() => setPageStart(addDays(pageStart, -DAYS_PER_PAGE))}
@@ -226,7 +226,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
             </button>
             <button
               type="button"
-              className="btn-secondary px-2.5 py-1.5"
+              className="btn-secondary size-10 p-0"
               aria-label="Další týden"
               disabled={addDays(pageStart, DAYS_PER_PAGE) > lastBookableDay}
               onClick={() => setPageStart(addDays(pageStart, DAYS_PER_PAGE))}
@@ -253,26 +253,26 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
                 onClick={() => goToDate(d)}
                 className={`rounded-lg border px-1 py-2 text-center text-sm transition-[color,background-color,border-color,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 enabled:active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${
                   selected
-                    ? "border-accent-strong bg-accent-strong text-white"
+                    ? "border-accent bg-accent text-white shadow-(--shadow-accent)"
                     : closed
-                      ? "cursor-not-allowed border-transparent bg-stone-100/50 text-stone-300"
-                      : "border-edge/80 bg-surface/55 hover:border-brand-300 hover:bg-surface"
+                      ? "cursor-not-allowed border-transparent text-stone-300"
+                      : "border-edge bg-surface hover:border-brand-200 hover:bg-brand-50/40"
                 }`}
               >
-                <span className="block text-xs font-medium uppercase">{weekday.short}</span>
-                <span className="block font-semibold">{Number(d.slice(8))}.</span>
-                {d === today && <span className={`mx-auto mt-0.5 block size-1 rounded-full ${selected ? "bg-white" : "bg-brand-600"}`} aria-hidden />}
+                <span className="block text-xs font-semibold opacity-80">{weekday.short}</span>
+                <span className="mt-0.5 block font-display text-xl font-bold">{Number(d.slice(8))}</span>
+                {d === today && <span className={`mx-auto mt-0.5 block size-1.5 rounded-full ${selected ? "bg-white" : "bg-brand-500"}`} aria-hidden />}
               </button>
             );
           })}
         </div>
 
-        <p className="mt-4 text-sm font-medium first-letter:uppercase">{formatDateLong(date)}</p>
+        <p className="mt-5 font-semibold first-letter:uppercase">{formatDateLong(date)}</p>
         <div className="mt-2 min-h-12" aria-live="polite">
           {!service ? null : !current ? (
             <div className="grid grid-cols-4 gap-1.5 sm:grid-cols-6 md:grid-cols-7" aria-label="Načítám volné termíny">
               {Array.from({ length: 7 }, (_, i) => (
-                <div key={i} className="h-9 animate-pulse rounded-lg bg-surface/60" />
+                <div key={i} className="h-11 animate-pulse rounded-xl bg-sand-100" />
               ))}
             </div>
           ) : "failed" in current ? (
@@ -283,13 +283,13 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
               </button>
             </p>
           ) : current.slots.length === 0 ? (
-            <div className="rounded-xl border border-edge/70 bg-surface/50 px-4 py-3 text-sm text-stone-600">
+            <div className="rounded-2xl bg-butter-100 px-5 py-4 text-stone-700">
               <p>V tento den už nejsou volné termíny.</p>
               {current.nextAvailable ? (
                 <button
                   type="button"
                   onClick={() => goToDate(current.nextAvailable!)}
-                  className="mt-2 inline-flex items-center gap-1 font-semibold text-brand-700 hover:underline"
+                  className="mt-2 inline-flex items-center gap-1 link"
                 >
                   Nejbližší volný termín: <span className="first-letter:uppercase">{formatDateLong(current.nextAvailable)}</span> →
                 </button>
@@ -309,10 +309,10 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
                     setSelection({ key: requestKey, slot: s });
                     requestAnimationFrame(() => revealStep(step3Ref.current));
                   }}
-                  className={`rounded-lg border py-2 text-sm font-medium tabular-nums transition-[color,background-color,border-color,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${
+                  className={`rounded-xl border py-2.5 font-semibold tabular-nums transition-[color,background-color,border-color,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${
                     s === slot
-                      ? "border-accent-strong bg-accent-strong text-white shadow-(--shadow-brand)"
-                      : "border-edge/80 bg-surface/60 hover:border-brand-300 hover:bg-surface"
+                      ? "border-accent bg-accent text-white shadow-(--shadow-accent)"
+                      : "border-edge bg-surface hover:border-brand-300 hover:bg-brand-50/50"
                   }`}
                 >
                   {formatTime(s, business.timezone)}
@@ -405,7 +405,7 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
           )}
 
           {service && slot && (
-            <div className="flex animate-[rise-in_220ms_var(--ease-out)] flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-xl border border-brand-100 bg-brand-50/70 px-4 py-3 text-sm motion-reduce:animate-none">
+            <div className="flex animate-[rise-in_220ms_var(--ease-out)] flex-wrap items-center justify-between gap-x-4 gap-y-1 rounded-2xl bg-brand-50 px-5 py-4 motion-reduce:animate-none">
               <span>
                 <span className="font-semibold">{service.name}</span> ·{" "}
                 <span className="first-letter:uppercase">
@@ -413,14 +413,14 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
                 </span>{" "}
                 v {formatTime(slot, business.timezone)}
               </span>
-              <span className="font-semibold tabular-nums">{formatPrice(service.price_czk)}</span>
+              <span className="font-display text-lg font-bold tabular-nums">{formatPrice(service.price_czk)}</span>
             </div>
           )}
 
-          <SubmitButton className="btn-primary w-full py-3 text-base" pendingText="Odesílám…" disabled={!slot}>
+          <SubmitButton className="btn-primary w-full py-3.5 text-base" pendingText="Odesílám…" disabled={!slot}>
             Závazně rezervovat
           </SubmitButton>
-          <p className="text-center text-xs text-stone-400">Vaše údaje použijeme jen pro vyřízení této rezervace.</p>
+          <p className="text-center text-sm text-stone-500">Vaše údaje použijeme jen pro vyřízení této rezervace.</p>
         </form>
       </section>
     </div>
@@ -429,10 +429,10 @@ function BookingFlow({ business, services, openWeekdays, closures, today, onRest
 
 function StepTitle({ id, n, done, children }: { id: string; n: number; done: boolean; children: React.ReactNode }) {
   return (
-    <h2 id={id} className="flex items-center gap-3 text-lg font-semibold">
+    <h2 id={id} className="flex items-center gap-3 font-display text-xl font-bold tracking-tight">
       <span
-        className={`grid size-7 place-items-center rounded-full text-sm font-bold transition-colors ${
-          done ? "bg-accent-strong text-white" : "bg-brand-100 text-brand-800"
+        className={`grid size-8 place-items-center rounded-full text-sm font-bold transition-colors duration-200 ${
+          done ? "bg-accent text-white" : "bg-brand-100 text-brand-700"
         }`}
         aria-hidden
       >

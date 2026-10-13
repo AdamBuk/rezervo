@@ -10,8 +10,8 @@ export default async function ResetPasswordPage() {
 
   return (
     <>
-      <h1 className="text-xl font-bold">Nastavte si nové heslo</h1>
-      <p className="mb-6 mt-1 text-sm text-stone-600">
+      <h1 className="headline text-3xl sm:text-4xl">Nastavte si nové heslo</h1>
+      <p className="mt-3 mb-7 text-stone-600">
         Pro účet <strong className="break-all text-stone-900">{user.email}</strong>.
       </p>
       <ResetPasswordForm email={user.email} />
