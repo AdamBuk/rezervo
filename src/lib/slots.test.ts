@@ -220,3 +220,21 @@ describe("staff schedules", () => {
     expect(slots.map((s) => hhmm(s.start))).toEqual(["12:00"]);
   });
 });
+
+describe("staff days off", () => {
+  it("skips a staff member on leave and keeps the others", () => {
+    const slots = computeStaffSlots({
+      date: "2026-10-19",
+      timeZone: TZ,
+      opening: { opens_at: "09:00:00", closes_at: "10:00:00" },
+      durationMinutes: 60,
+      stepMinutes: 30,
+      now: new Date("2026-10-01T00:00:00Z"),
+      staff: [
+        { staffId: "eva", busy: [], daysOff: [{ starts_on: "2026-10-18", ends_on: "2026-10-20" }] },
+        { staffId: "ota", busy: [], daysOff: [{ starts_on: "2026-10-21", ends_on: "2026-10-21" }] },
+      ],
+    });
+    expect(slots.map((s) => s.staffIds)).toEqual([["ota"]]);
+  });
+});

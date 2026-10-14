@@ -2,7 +2,7 @@
 // through `ApiDeps`, so the route files wire in Supabase and tests use fakes.
 
 import { BOOKING_HORIZON_DAYS, MIN_NOTICE_MINUTES } from "@/lib/constants";
-import { computeStaffSlots, type StaffBusy, type StaffSchedule } from "@/lib/slots";
+import { computeStaffSlots, type DateRange, type StaffBusy, type StaffSchedule } from "@/lib/slots";
 import { addDays, isoWeekday, minutesToTime, todayInTimeZone, toZoned, zonedTimeToUtc } from "@/lib/time";
 import { hashApiKey, isWellFormedApiKey, parseBearer } from "./keys";
 import { apiError, apiJson } from "./responses";
@@ -17,7 +17,14 @@ export type ApiService = {
   price_czk: number;
 };
 /** Active staff member with the services they perform and their own schedule (undefined = opening hours). */
-export type ApiStaff = { id: string; name: string; service_ids: string[]; schedule?: StaffSchedule };
+export type ApiStaff = {
+  id: string;
+  name: string;
+  service_ids: string[];
+  schedule?: StaffSchedule;
+  /** Own days off (holiday, sick leave) */
+  daysOff?: DateRange[];
+};
 export type ApiBookingRecord = {
   id: string;
   status: "confirmed" | "cancelled";
@@ -223,6 +230,7 @@ export function createApiHandlers(deps: ApiDeps) {
   function listStaff(request: Request) {
     return withApi(request, "read", async ({ business }) => {
       const staff = await store.listStaff(business.id);
+      const today = todayInTimeZone(business.timezone, now());
       return apiJson({
         data: staff.map((m) => ({
           id: m.id,
@@ -236,6 +244,11 @@ export function createApiHandlers(deps: ApiDeps) {
                 closes_at: h!.closes_at.slice(0, 5),
               }))
             : null,
+          // Upcoming days off, inclusive ranges in the business timezone
+          days_off: (m.daysOff ?? [])
+            .filter((d) => d.ends_on >= today)
+            .sort((a, b) => a.starts_on.localeCompare(b.starts_on))
+            .map((d) => ({ starts_on: d.starts_on, ends_on: d.ends_on })),
         })),
       });
     });

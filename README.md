@@ -43,7 +43,7 @@ curl -H "Authorization: Bearer <API klíč>" https://rezervo.bukac-adam.workers.
 - **Pohodlí pro zákazníka** – automatický skok na nejbližší volný den, po rezervaci přidání do Google/Apple/Outlook kalendáře (.ics).
 - **Ochrana proti spamu** – honeypot a limit 8 rezervací za 10 minut z jedné IP adresy (sdílený Postgres rate limiter).
 - **Zrušení zákazníkem** – v potvrzení i připomínce je podepsaný odkaz (`/rezervace/<id>/<token>`, HMAC – nic se neukládá) na stránku, kde zákazník rezervaci zruší nejpozději 2 hodiny předem; majitel dostane e-mail.
-- **Dovolená a zavírací dny** – majitel nastaví svátky/dovolenou, v tyto dny se termíny nenabízejí (web, API) a databáze rezervaci odmítne.
+- **Dovolená a zavírací dny** – majitel nastaví svátky/dovolenou pro celý podnik, nebo volno jednoho pracovníka (ostatní pracují dál). V tyto dny se termíny nenabízejí (web, API) a databáze rezervaci odmítne.
 - **Zapomenuté heslo** – obnova přes e-mail (Supabase Auth), bez prozrazení, zda účet existuje.
 - **Veřejné REST API** pro externí aplikace (např. AI asistenta) – služby, volné termíny, vytvoření a zrušení rezervace; API klíč si majitel spravuje v administraci. Viz [Veřejné REST API](#veřejné-rest-api).
 
@@ -100,7 +100,7 @@ Požadavky: Node.js 20+ a účet na [supabase.com](https://supabase.com) (free t
    ```
 2. **Supabase projekt** – vytvořte nový projekt a v **SQL Editoru** spusťte postupně všechny soubory ze
    [`supabase/migrations/`](supabase/migrations/) v pořadí podle názvu
-   (`…_initial_schema.sql`, `…_public_api.sql`, `…_reserved_slugs.sql`, `…_closures.sql`, `…_staff.sql`, `…_staff_hours.sql`),
+   (`…_initial_schema.sql`, `…_public_api.sql`, `…_reserved_slugs.sql`, `…_closures.sql`, `…_staff.sql`, `…_staff_hours.sql`, `…_staff_closures.sql`),
    případně `npx supabase link` + `npx supabase db push`.
 3. **Proměnné prostředí** – zkopírujte `.env.example` do `.env.local` a doplňte:
    - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` – *Project Settings → API Keys* (secret key je nutný pro e-maily, připomínky, seed a veřejné API)
@@ -183,13 +183,13 @@ curl https://<doména>/api/v1/staff -H "Authorization: Bearer $REZERVO_API_KEY"
 ```json
 {
   "data": [
-    { "id": "7a1e…", "name": "Jana", "service_ids": ["5b0c6f8e-…"], "working_hours": null },
-    { "id": "c03b…", "name": "Tomáš", "service_ids": ["5b0c6f8e-…"], "working_hours": [{ "weekday": 3, "opens_at": "12:00", "closes_at": "19:00" }] }
+    { "id": "7a1e…", "name": "Jana", "service_ids": ["5b0c6f8e-…"], "working_hours": null, "days_off": [] },
+    { "id": "c03b…", "name": "Tomáš", "service_ids": ["5b0c6f8e-…"], "working_hours": [{ "weekday": 3, "opens_at": "12:00", "closes_at": "19:00" }], "days_off": [{ "starts_on": "2026-10-21", "ends_on": "2026-10-22" }] }
   ]
 }
 ```
 
-Aktivní pracovníci v pořadí, ve kterém se přidělují rezervace „Kdokoli“, služby, které dělají, a pracovní doba (`null` = celá otevírací doba podniku, jinak směny po dnech v týdnu, `weekday` 1 = pondělí; chybějící den = volno).
+Aktivní pracovníci v pořadí, ve kterém se přidělují rezervace „Kdokoli“, služby, které dělají, a pracovní doba (`null` = celá otevírací doba podniku, jinak směny po dnech v týdnu, `weekday` 1 = pondělí; chybějící den = volno) a nadcházející dny volna `days_off` (včetně obou krajních dnů).
 
 #### `GET /services` – seznam služeb
 

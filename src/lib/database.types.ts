@@ -236,6 +236,8 @@ export type Database = {
         Row: {
           id: string;
           business_id: string;
+          /** null = the whole business is closed */
+          staff_id: string | null;
           starts_on: string;
           ends_on: string;
           note: string | null;
@@ -244,6 +246,7 @@ export type Database = {
         Insert: {
           id?: string;
           business_id: string;
+          staff_id?: string | null;
           starts_on: string;
           ends_on: string;
           note?: string | null;
@@ -252,12 +255,20 @@ export type Database = {
         Update: {
           id?: string;
           business_id?: string;
+          staff_id?: string | null;
           starts_on?: string;
           ends_on?: string;
           note?: string | null;
           created_at?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: "closures_staff_id_fkey";
+            columns: ["staff_id"];
+            isOneToOne: false;
+            referencedRelation: "staff";
+            referencedColumns: ["id"];
+          },
           {
             foreignKeyName: "closures_business_id_fkey";
             columns: ["business_id"];

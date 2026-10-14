@@ -57,7 +57,7 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
     bookingsQuery = bookingsQuery.eq("staff_id", staffFilter);
     upcomingQuery = upcomingQuery.eq("staff_id", staffFilter);
   }
-  const [{ data: bookings }, { data: hours }, { data: upcoming }, { data: staff }] = await Promise.all([
+  const [{ data: bookings }, { data: hours }, { data: upcoming }, { data: staff }, { data: staffLeave }] = await Promise.all([
     bookingsQuery,
     supabase.from("opening_hours").select("weekday, opens_at, closes_at").eq("business_id", business.id),
     upcomingQuery.order("starts_at").limit(1).maybeSingle(),
@@ -67,6 +67,13 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
       .eq("business_id", business.id)
       .order("sort_order")
       .order("created_at"),
+    supabase
+      .from("closures")
+      .select("staff_id, starts_on, ends_on")
+      .eq("business_id", business.id)
+      .not("staff_id", "is", null)
+      .lte("starts_on", addDays(rangeStart, dayCount - 1))
+      .gte("ends_on", rangeStart),
   ]);
 
   const allStaff = staff ?? [];
@@ -79,7 +86,10 @@ export default async function CalendarPage({ searchParams }: PageProps<"/dashboa
   /** A staff member's shift on a day: undefined = opening hours, null = day off */
   const shiftOf = (staffId: string | null, date: string) => {
     const member = staffId ? allStaff.find((m) => m.id === staffId) : undefined;
-    if (!member || member.uses_business_hours) return undefined;
+    if (!member) return undefined;
+    const onLeave = (staffLeave ?? []).some((c) => c.staff_id === member.id && c.starts_on <= date && date <= c.ends_on);
+    if (onLeave) return null;
+    if (member.uses_business_hours) return undefined;
     return member.staff_hours.find((h) => h.weekday === isoWeekday(date)) ?? null;
   };
 

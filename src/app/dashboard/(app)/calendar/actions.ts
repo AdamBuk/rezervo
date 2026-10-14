@@ -95,12 +95,14 @@ export async function rescheduleBooking(_prev: ActionState, formData: FormData):
       .from("closures")
       .select("id")
       .eq("business_id", business.id)
+      // The whole business, or this staff member's own days off.
+      .or(`staff_id.is.null,staff_id.eq.${staffId}`)
       .lte("starts_on", date)
       .gte("ends_on", date)
       .limit(1)
       .maybeSingle(),
   ]);
-  if (closure) return { error: "V tento den máte nastavené zavřeno (dovolená). Vyberte jiný den." };
+  if (closure) return { error: "V tento den má podnik nebo pracovník volno (dovolená). Vyberte jiný den nebo pracovníka." };
   const opening = regularOpening;
 
   // A staff member with an own schedule only works their shift on that day.

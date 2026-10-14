@@ -84,6 +84,7 @@ function createSupabaseStore(): ApiStore {
         .from("closures")
         .select("id")
         .eq("business_id", businessId)
+        .is("staff_id", null)
         .lte("starts_on", date)
         .gte("ends_on", date)
         .limit(1);
@@ -94,7 +95,9 @@ function createSupabaseStore(): ApiStore {
     async listStaff(businessId) {
       const { data, error } = await admin()
         .from("staff")
-        .select("id, name, uses_business_hours, staff_services(service_id), staff_hours(weekday, opens_at, closes_at)")
+        .select(
+          "id, name, uses_business_hours, staff_services(service_id), staff_hours(weekday, opens_at, closes_at), closures(starts_on, ends_on)",
+        )
         .eq("business_id", businessId)
         .eq("is_active", true)
         .order("sort_order")
@@ -106,6 +109,7 @@ function createSupabaseStore(): ApiStore {
         name: m.name,
         service_ids: m.staff_services.map((l) => l.service_id),
         schedule: staffSchedule(m.uses_business_hours, m.staff_hours),
+        daysOff: m.closures,
       }));
     },
 

@@ -54,7 +54,13 @@ export function computeAvailableSlots(input: SlotInput): Date[] {
 export type StaffSchedule = Partial<Record<number, OpeningInterval>>;
 
 /** Confirmed bookings of one staff member, plus their own schedule (undefined = business opening hours). */
-export type StaffBusy = { staffId: string; busy: Interval[]; schedule?: StaffSchedule };
+export type StaffBusy = {
+  staffId: string;
+  busy: Interval[];
+  schedule?: StaffSchedule;
+  /** The staff member's own days off (holiday, sick leave) */
+  daysOff?: readonly DateRange[];
+};
 
 export type StaffSlot = {
   start: Date;
@@ -74,7 +80,8 @@ export function computeStaffSlots(input: StaffSlotInput): StaffSlot[] {
   const weekday = isoWeekday(rest.date);
   for (const member of staff) {
     const within = member.schedule ? member.schedule[weekday] : undefined;
-    if (member.schedule && !within) continue; // day off
+    if (member.schedule && !within) continue; // not on shift that weekday
+    if (member.daysOff && isClosedOn(rest.date, member.daysOff)) continue; // on leave
     for (const start of computeAvailableSlots({ ...rest, busy: member.busy, within })) {
       const slot = byStart.get(start.getTime());
       if (slot) slot.staffIds.push(member.staffId);
@@ -86,12 +93,13 @@ export function computeStaffSlots(input: StaffSlotInput): StaffSlot[] {
 
 /** Groups busy intervals (e.g. from get_staff_busy_intervals) by staff member, keeping the given order. */
 export function groupBusyByStaff(
-  staff: readonly { id: string; schedule?: StaffSchedule }[],
+  staff: readonly { id: string; schedule?: StaffSchedule; daysOff?: readonly DateRange[] }[],
   rows: readonly { staff_id: string; starts_at: string; ends_at: string }[],
 ): StaffBusy[] {
-  return staff.map(({ id: staffId, schedule }) => ({
+  return staff.map(({ id: staffId, schedule, daysOff }) => ({
     staffId,
     schedule,
+    daysOff,
     busy: rows
       .filter((r) => r.staff_id === staffId)
       .map((r) => ({ start: new Date(r.starts_at), end: new Date(r.ends_at) })),

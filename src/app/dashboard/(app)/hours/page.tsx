@@ -11,14 +11,15 @@ export default async function HoursPage() {
   const business = await requireBusiness();
   const supabase = await createClient();
   const today = todayInTimeZone(business.timezone);
-  const [{ data: hours }, { data: closures }] = await Promise.all([
+  const [{ data: hours }, { data: closures }, { data: staff }] = await Promise.all([
     supabase.from("opening_hours").select("*").eq("business_id", business.id),
     supabase
       .from("closures")
-      .select("id, starts_on, ends_on, note")
+      .select("id, starts_on, ends_on, note, staff_id")
       .eq("business_id", business.id)
       .gte("ends_on", today)
       .order("starts_on"),
+    supabase.from("staff").select("id, name").eq("business_id", business.id).eq("is_active", true).order("sort_order").order("created_at"),
   ]);
 
   return (
@@ -38,9 +39,10 @@ export default async function HoursPage() {
           Dovolená a zavírací dny
         </h2>
         <p className="mb-4 mt-1 text-sm text-stone-600">
-          Svátky, dovolená nebo nemoc. V tyto dny si zákazníci nic nezarezervují – ani přes web, ani přes API.
+          Svátky, dovolená nebo nemoc – pro celý podnik, nebo jen pro jednoho pracovníka. V tyto dny si zákazníci nic
+          nezarezervují – ani přes web, ani přes API.
         </p>
-        <ClosuresManager closures={closures ?? []} today={today} />
+        <ClosuresManager closures={closures ?? []} staff={staff ?? []} today={today} />
       </section>
     </div>
   );

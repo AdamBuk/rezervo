@@ -93,6 +93,12 @@ function BookingFlow({
   const serviceStaff = service ? staff.filter((m) => staffByService[service.id]?.includes(m.id)) : [];
   // A staff member chosen for another service may not do this one; then it's "anyone" again.
   const chosenStaff = serviceStaff.find((m) => m.id === staffId) ?? null;
+  /** Whether a staff member works that day at all (shift weekday, not on leave) */
+  const worksOn = (m: (typeof staff)[number], day: string) =>
+    (m.workdays === null || m.workdays.includes(isoWeekday(day))) && !isClosedOn(day, m.daysOff);
+  // Days nobody relevant works are shown as closed, like holidays.
+  const staffOff = (day: string) =>
+    service ? !(chosenStaff ? [chosenStaff] : serviceStaff).some((m) => worksOn(m, day)) : false;
   const requestKey = serviceId ? `${serviceId}|${chosenStaff?.id ?? "any"}|${date}|${reloadKey}` : null;
   const current = result && result.key === requestKey ? result : null;
   const slot = selection && selection.key === requestKey ? selection.slot : null;
@@ -287,7 +293,8 @@ function BookingFlow({
           {days.map((d) => {
             const weekday = WEEKDAYS[isoWeekday(d) - 1];
             const holiday = isClosedOn(d, closures);
-            const closed = !openWeekdays.includes(weekday.iso) || holiday || d > lastBookableDay;
+            const off = !holiday && staffOff(d);
+            const closed = !openWeekdays.includes(weekday.iso) || holiday || off || d > lastBookableDay;
             const selected = d === date;
             return (
               <button
@@ -295,8 +302,8 @@ function BookingFlow({
                 type="button"
                 disabled={closed}
                 aria-pressed={selected}
-                aria-label={`${formatDateLong(d)}${holiday ? " – dovolená" : closed ? " – zavřeno" : ""}`}
-                title={holiday ? "Zavřeno (dovolená)" : undefined}
+                aria-label={`${formatDateLong(d)}${holiday ? " – dovolená" : off && chosenStaff ? ` – ${chosenStaff.name} nepracuje` : closed ? " – zavřeno" : ""}`}
+                title={holiday ? "Zavřeno (dovolená)" : off && chosenStaff ? `${chosenStaff.name} v tento den nepracuje` : undefined}
                 onClick={() => goToDate(d)}
                 className={`rounded-lg border px-1 py-2 text-center text-sm transition-[color,background-color,border-color,transform] duration-150 ease-(--ease-out) focus-visible:outline-2 enabled:active:scale-[0.96] motion-reduce:active:scale-100 focus-visible:outline-offset-2 focus-visible:outline-brand-600 ${
                   selected

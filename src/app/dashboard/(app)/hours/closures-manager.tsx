@@ -14,7 +14,10 @@ function formatRange(startsOn: string, endsOn: string) {
   return startsOn === endsOn ? fmt(startsOn) : `${fmt(startsOn)} – ${fmt(endsOn)}`;
 }
 
-function ClosureItem({ closure }: { closure: Pick<Closure, "id" | "starts_on" | "ends_on" | "note"> }) {
+type ClosureRow = Pick<Closure, "id" | "starts_on" | "ends_on" | "note" | "staff_id">;
+type StaffOption = { id: string; name: string };
+
+function ClosureItem({ closure, staffName }: { closure: ClosureRow; staffName: string | null }) {
   const [state, action] = useActionState(deleteClosure, undefined);
   return (
     <li className="rounded-xl border border-edge bg-sand-50/60 px-4 py-2.5">
@@ -22,7 +25,10 @@ function ClosureItem({ closure }: { closure: Pick<Closure, "id" | "starts_on" | 
         <input type="hidden" name="id" value={closure.id} />
         <div className="min-w-0">
           <p className="font-medium tabular-nums first-letter:uppercase">{formatRange(closure.starts_on, closure.ends_on)}</p>
-          {closure.note && <p className="truncate text-sm text-stone-500">{closure.note}</p>}
+          <p className="truncate text-sm text-stone-500">
+            {staffName ? `Volno: ${staffName}` : "Zavřený celý podnik"}
+            {closure.note && ` · ${closure.note}`}
+          </p>
         </div>
         <ConfirmSubmit
           label="Odebrat"
@@ -37,13 +43,7 @@ function ClosureItem({ closure }: { closure: Pick<Closure, "id" | "starts_on" | 
   );
 }
 
-export function ClosuresManager({
-  closures,
-  today,
-}: {
-  closures: Pick<Closure, "id" | "starts_on" | "ends_on" | "note">[];
-  today: string;
-}) {
+export function ClosuresManager({ closures, staff, today }: { closures: ClosureRow[]; staff: StaffOption[]; today: string }) {
   const [state, formAction] = useActionState(addClosure, undefined);
   const formRef = useRef<HTMLFormElement>(null);
   const toRef = useRef<HTMLInputElement>(null);
@@ -59,7 +59,7 @@ export function ClosuresManager({
       {closures.length > 0 ? (
         <ul className="space-y-2" aria-label="Naplánované zavírací dny">
           {closures.map((c) => (
-            <ClosureItem key={c.id} closure={c} />
+            <ClosureItem key={c.id} closure={c} staffName={c.staff_id ? (staff.find((m) => m.id === c.staff_id)?.name ?? "neaktivní pracovník") : null} />
           ))}
         </ul>
       ) : (
@@ -70,6 +70,21 @@ export function ClosuresManager({
 
       <form ref={formRef} action={formAction} className="space-y-3 rounded-xl border border-edge bg-sand-50/60 p-4">
         <h3 className="font-medium">Přidat zavírací dny</h3>
+        {staff.length > 1 && (
+          <div>
+            <label htmlFor="closure-staff" className="label">
+              Pro koho
+            </label>
+            <select id="closure-staff" name="staff_id" defaultValue="" className="input">
+              <option value="">Celý podnik (zavřeno)</option>
+              {staff.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name} (volno)
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           <div>
             <label htmlFor="closure-from" className="label">

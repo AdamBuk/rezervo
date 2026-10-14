@@ -301,5 +301,31 @@ await expect("staff hours: 'anyone' at 12:00 goes to Eva (first in order)", asyn
 await expect("staff hours: invalid range rejected", () => db.query(
   "insert into staff_hours values ($1, 1, '12:00', '11:00')", [ota.id]), /check constraint/);
 
+// --- Staff days off ---------------------------------------------------------
+// Ota (business hours) takes day + 5 off; Eva (12–17) keeps working.
+const { rows: [{ day5 }] } = await db.query(`select ((now() at time zone 'Europe/Prague')::date + 5)::text as day5`);
+const at5 = (offsetMin) => new Date(new Date(d).getTime() + 2 * 86400000 + offsetMin * 60000).toISOString(); // day + 5
+await db.exec(`set role authenticated; set request.jwt.claim.sub = '${shiftOwner}'`);
+await expect("owner adds a staff day off", () => db.query(
+  "insert into closures (business_id, staff_id, starts_on, ends_on, note) values ($1, $2, $3, $3, 'Dovolená') returning id",
+  [biz3.id, ota.id, day5]).then(r => r.rows.length));
+await db.exec("reset role");
+await expect("staff closure for another business's staff rejected", () => db.query(
+  "insert into closures (business_id, staff_id, starts_on, ends_on) values ($1, $2, $3, $3)", [biz.id, ota.id, day5]), /staff_not_found/);
+
+await db.exec("set role anon");
+await expect("Ota on leave: requested -> outside_staff_hours", () => book3(at5(0), ota.id), /outside_staff_hours/);
+await expect("Ota on leave: anyone at 10:00 (Eva off shift) -> outside_staff_hours", () => book3(at5(0)), /outside_staff_hours/);
+const leaveNoon = await book3(at5(120)).then(r => r.rows[0].id);
+await expect("anon reads staff_id of closures", () => db.query("select staff_id from closures where staff_id is not null").then(r => r.rows.length));
+await db.exec("reset role");
+await expect("Ota on leave: anyone at 12:00 goes to Eva", async () => {
+  if ((await staffOf3(leaveNoon)) !== eva.id) throw new Error("expected Eva"); return "Eva";
+});
+await expect("staff closure doesn't close the business", () => db.query(
+  "select count(*)::int as n from closures where business_id = $1 and staff_id is null", [biz3.id]).then(r => {
+    if (r.rows[0].n !== 0) throw new Error("unexpected business closure"); return 0;
+  }));
+
 console.log(failures ? `\n${failures} FAILURES` : "\nALL PASSED");
 process.exit(failures || process.exitCode ? 1 : 0);

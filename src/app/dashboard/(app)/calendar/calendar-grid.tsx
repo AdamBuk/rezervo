@@ -77,10 +77,14 @@ export function CalendarGrid({ columns, timeZone, bookings, hours, now, bookingH
   const hourLabels = Array.from({ length: lastHour - firstHour }, (_, i) => firstHour + i);
   const gridHeight = hourLabels.length * HOUR_HEIGHT;
   const template = { gridTemplateColumns: `3.5rem repeat(${columns.length}, minmax(0, 1fr))` };
+  const laidOut = columns.map((c) => layoutLanes(placed.filter((b) => b.date === c.date && c.match(b))));
+  const maxLanes = Math.max(1, ...laidOut.flat().map((b) => b.lanes));
+  // Wide enough that side-by-side bookings stay readable; the grid scrolls sideways on small screens.
+  const minWidth = columns.length > 3 ? Math.max(680, columns.length * maxLanes * 72) : columns.length > 1 ? 420 : 0;
 
   return (
     <div className="panel overflow-x-auto rounded-2xl">
-      <div className={columns.length > 3 ? "min-w-[680px]" : columns.length > 1 ? "min-w-[420px]" : ""}>
+      <div style={minWidth ? { minWidth } : undefined}>
         {/* Column headers */}
         <div className="grid border-b border-edge" style={template}>
           {/* Sticky so the time column stays visible when the grid scrolls sideways on phones */}
@@ -122,12 +126,12 @@ export function CalendarGrid({ columns, timeZone, bookings, hours, now, bookingH
             ))}
           </div>
 
-          {columns.map((c) => {
+          {columns.map((c, columnIndex) => {
             const businessOpening = hours.find((h) => h.weekday === isoWeekday(c.date)) ?? null;
             const opening = c.opening === undefined ? businessOpening : businessOpening && c.opening;
             const openTop = opening ? (timeToMinutes(opening.opens_at) - gridStart) * PX_PER_MIN : 0;
             const openHeight = opening ? (timeToMinutes(opening.closes_at) - timeToMinutes(opening.opens_at)) * PX_PER_MIN : 0;
-            const columnBookings = layoutLanes(placed.filter((b) => b.date === c.date && c.match(b)));
+            const columnBookings = laidOut[columnIndex];
             return (
               <div key={c.key} className="relative border-l border-edge bg-[repeating-linear-gradient(-45deg,transparent_0_6px,var(--color-sand-100)_6px_7px)]" style={{ height: gridHeight }}>
                 {/* Opening hours background */}
@@ -149,6 +153,8 @@ export function CalendarGrid({ columns, timeZone, bookings, hours, now, bookingH
                 {columnBookings.map((b) => {
                   const height = Math.max((b.endMin - b.startMin) * PX_PER_MIN - 2, 18);
                   const compact = height < 40;
+                  // Narrow blocks (3+ side by side) show just the time; the title has the rest.
+                  const narrow = b.lanes >= 3;
                   const past = b.date < now.date || (b.date === now.date && b.endMin <= now.minutes);
                   const details = showStaff ? `${b.serviceName} · ${b.staffName}` : b.serviceName;
                   return (
@@ -172,10 +178,10 @@ export function CalendarGrid({ columns, timeZone, bookings, hours, now, bookingH
                       title={`${minutesToTime(b.startMin)}–${minutesToTime(b.endMin)} ${b.customerName} – ${b.serviceName} (${b.staffName})${past ? " (proběhlo)" : ""}`}
                     >
                       <span className="block truncate">
-                        <span className="font-semibold tabular-nums">{minutesToTime(b.startMin)}</span>{" "}
-                        <span className="font-medium">{b.customerName}</span>
+                        <span className="font-semibold tabular-nums">{minutesToTime(b.startMin)}</span>
+                        {!narrow && <span className="font-medium"> {b.customerName}</span>}
                       </span>
-                      {!compact && <span className="block truncate opacity-80">{details}</span>}
+                      {!compact && <span className="block truncate opacity-80">{narrow ? b.customerName : details}</span>}
                     </Link>
                   );
                 })}

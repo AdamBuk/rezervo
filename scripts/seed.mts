@@ -289,6 +289,25 @@ async function main() {
   const { error: bookingError } = await supabase.from("bookings").insert(bookings);
   if (bookingError) throw bookingError;
 
+  // Petra's holiday next week (after the generated bookings, which don't avoid it).
+  const petra = staff.find((m) => m.name === "Petra")!;
+  const leaveFrom = addDays(today, 7);
+  const { error: leaveError } = await supabase.from("closures").insert({
+    business_id: business.id,
+    staff_id: petra.id,
+    starts_on: leaveFrom,
+    ends_on: addDays(leaveFrom, 1),
+    note: "Dovolená",
+  });
+  if (leaveError) throw leaveError;
+  const { error: cancelError } = await supabase
+    .from("bookings")
+    .update({ status: "cancelled" })
+    .eq("staff_id", petra.id)
+    .gte("starts_at", pragueToUtc(leaveFrom, 0).toISOString())
+    .lt("starts_at", pragueToUtc(addDays(leaveFrom, 2), 0).toISOString());
+  if (cancelError) throw cancelError;
+
   const apiKey = await createApiKey(business.id, encryptionSecret!);
 
   console.log(`Created business /${SLUG} with ${services.length} services, ${staff.length} staff and ${bookings.length} bookings.`);

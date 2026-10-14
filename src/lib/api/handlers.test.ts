@@ -97,9 +97,10 @@ function setup() {
       return businessId === BIZ.id ? f.staff : [];
     },
     async getStaffBusy(businessId, staff, from, to) {
-      return staff.map(({ id: staffId, schedule }) => ({
+      return staff.map(({ id: staffId, schedule, daysOff }) => ({
         staffId,
         schedule,
+        daysOff,
         busy: [...f.bookings.values()]
           .filter((b) => b.businessId === businessId && b.status === "confirmed" && b.staff?.id === staffId)
           .map((b) => ({ start: new Date(b.starts_at), end: new Date(b.ends_at) }))
@@ -622,8 +623,8 @@ describe("staff", () => {
     const res = await ctx.api.listStaff(req("/staff", { key: ctx.f.key }));
     expect(res.status).toBe(200);
     expect((await json(res)).data).toEqual([
-      { id: JANA, name: "Jana", service_ids: [SERVICE.id], working_hours: null },
-      { id: PETR, name: "Petr", service_ids: [SERVICE.id], working_hours: null },
+      { id: JANA, name: "Jana", service_ids: [SERVICE.id], working_hours: null, days_off: [] },
+      { id: PETR, name: "Petr", service_ids: [SERVICE.id], working_hours: null, days_off: [] },
     ]);
     expect((await json(await ctx.api.listStaff(req("/staff", { key: ctx.otherKey })))).data).toEqual([]);
   });
@@ -724,5 +725,31 @@ describe("staff working hours", () => {
     const res = await ctx.api.createBooking(req("/bookings", { method: "POST", key: ctx.f.key, body: validBooking }));
     expect(res.status).toBe(422);
     expect((await json(res)).error?.code).toBe("outside_staff_hours");
+  });
+});
+
+describe("staff days off", () => {
+  it("skips a staff member on leave in slots and lists upcoming days off", async () => {
+    ctx.f.staff = [
+      {
+        id: JANA,
+        name: "Jana",
+        service_ids: [SERVICE.id],
+        daysOff: [
+          { starts_on: "2026-10-01", ends_on: "2026-10-02" }, // past – not listed
+          { starts_on: "2026-10-13", ends_on: "2026-10-14" },
+        ],
+      },
+      { id: PETR, name: "Petr", service_ids: [SERVICE.id] },
+    ];
+    const { data } = await json(await ctx.api.getSlots(req(`/slots?service_id=${SERVICE.id}&date=2026-10-13`, { key: ctx.f.key })));
+    const list = data!.slots as Array<{ staff_ids: string[] }>;
+    expect(list.length).toBeGreaterThan(0);
+    expect(list.every((s) => s.staff_ids.join() === PETR)).toBe(true);
+
+    const staff = await json(await ctx.api.listStaff(req("/staff", { key: ctx.f.key })));
+    expect((staff.data as unknown as Array<{ days_off: unknown }>)[0].days_off).toEqual([
+      { starts_on: "2026-10-13", ends_on: "2026-10-14" },
+    ]);
   });
 });

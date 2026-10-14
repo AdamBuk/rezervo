@@ -27,11 +27,11 @@ export const getPublicBusiness = cache(async (slug: string) => {
     // Upcoming and current closures only; the booking horizon is 60 days, so a handful is plenty.
     supabase
       .from("closures")
-      .select("starts_on, ends_on")
+      .select("starts_on, ends_on, staff_id")
       .eq("business_id", business.id)
       .gte("ends_on", todayInTimeZone(business.timezone))
       .order("starts_on")
-      .limit(50),
+      .limit(200),
     supabase
       .from("staff")
       .select("id, name, uses_business_hours, staff_hours(weekday, opens_at, closes_at)")
@@ -43,7 +43,16 @@ export const getPublicBusiness = cache(async (slug: string) => {
     supabase.from("staff_services").select("staff_id, service_id, staff!inner(business_id)").eq("staff.business_id", business.id),
   ]);
 
-  const activeStaff = (staff ?? []).map((m) => ({ id: m.id, name: m.name }));
+  const allClosures = closures ?? [];
+  const daysOff = (staffId: string) =>
+    allClosures.filter((c) => c.staff_id === staffId).map(({ starts_on, ends_on }) => ({ starts_on, ends_on }));
+  // Public (shown on the booking page): which weekdays each staff member works (null = all open days) and their days off.
+  const activeStaff = (staff ?? []).map((m) => ({
+    id: m.id,
+    name: m.name,
+    workdays: m.uses_business_hours ? null : m.staff_hours.map((h) => h.weekday),
+    daysOff: daysOff(m.id),
+  }));
   // Server-only: who works when (undefined = whenever the business is open).
   const schedules: Record<string, StaffSchedule | undefined> = Object.fromEntries(
     (staff ?? []).map((m) => [m.id, staffSchedule(m.uses_business_hours, m.staff_hours)]),
@@ -62,7 +71,8 @@ export const getPublicBusiness = cache(async (slug: string) => {
     // Services nobody performs can't be booked, so they aren't offered at all.
     services: (services ?? []).filter((s) => staffByService[s.id].length > 0),
     hours: hours ?? [],
-    closures: closures ?? [],
+    // Whole-business closures only; staff days off are per staff member above.
+    closures: allClosures.filter((c) => c.staff_id === null).map(({ starts_on, ends_on }) => ({ starts_on, ends_on })),
     staff: activeStaff,
     staffByService,
     schedules,
@@ -94,7 +104,7 @@ export async function getAvailability(
   const data = await getPublicBusiness(slug);
   if (!data || !isValidDateString(date)) return null;
 
-  const { business, services, hours, closures, staffByService, schedules } = data;
+  const { business, services, hours, closures, staffByService, schedules, staff } = data;
   const service = services.find((s) => s.id === serviceId);
   if (!service) return null;
   const eligible = staffByService[service.id].filter((id) => staffId === null || id === staffId);
@@ -113,7 +123,7 @@ export async function getAvailability(
     });
     if (error) throw error;
     return groupBusyByStaff(
-      eligible.map((id) => ({ id, schedule: schedules[id] })),
+      eligible.map((id) => ({ id, schedule: schedules[id], daysOff: staff.find((m) => m.id === id)?.daysOff })),
       busy ?? [],
     );
   };
